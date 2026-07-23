@@ -128,6 +128,7 @@ export class PluginManager {
         // Project
         projectCreate: (p: any) => wrap("projectCreate", r.get("projectCreate"))(p),
         projectGet: (p: any) => wrap("projectGet", r.get("projectGet"))(p),
+        projectsList: (p: any) => wrap("projectsList", r.get("projectsList"))(p),
 
         // Fragments
         fragmentsList: (p: any) => wrap("fragmentsList", r.get("fragmentsList"))(p),

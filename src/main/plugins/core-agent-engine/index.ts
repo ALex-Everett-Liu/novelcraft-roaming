@@ -9,70 +9,6 @@ import { getDataDir } from "../../database/connection";
 
 const llmLogs: { ts: string; mode: string; system: string; user: string; response: string }[] = [];
 
-function logLlmCall(mode: string, system: string, user: string) {
-  const entry = { ts: new Date().toISOString(), mode, system, user, response: "" };
-  llmLogs.push(entry);
-  console.log(`[llm-log] ${mode} — system: ${system.length}c, user: ${user.length}c`);
-  return entry;
-}
-
-function streamLLMWithLog(
-  opts: Parameters<typeof streamLLM>[0],
-  logEntry: { response: string },
-) {
-  const onChunk = opts.onChunk;
-  const onDone = opts.onDone;
-  const onError = opts.onError;
-
-  let fullText = "";
-
-  opts.onChunk = (chunk) => {
-    fullText += chunk;
-    onChunk(chunk);
-  };
-
-  opts.onDone = (text) => {
-    logEntry.response = fullText || text;
-    console.log(`[llm-log] response: ${logEntry.response.length}c`);
-    onDone(text);
-  };
-
-  opts.onError = (msg, code) => {
-    logEntry.response = `ERROR: ${msg}`;
-    onError(msg, code);
-  };
-
-  streamLLM(opts);
-}
-
-function runLoggedLLM(
-  config: LLMConfig,
-  mode: string,
-  system: string,
-  user: string,
-  signal: AbortSignal,
-  send: (channel: string, payload: any) => void,
-  onFinally: () => void,
-) {
-  const logEntry = logLlmCall(mode, system, user);
-  streamLLMWithLog({
-    baseUrl: config.baseUrl,
-    apiKey: config.apiKey,
-    model: config.model,
-    temperature: config.temperature,
-    maxTokens: config.maxTokens,
-    messages: [
-      { role: "system", content: system },
-      { role: "user", content: user },
-    ],
-    signal,
-    onChunk: (chunk) => send("streamChunk", { content: chunk }),
-    onDone: (fullText) => send("streamDone", { fullText }),
-    onError: (message, code) => send("streamError", { message, code }),
-  }, logEntry);
-  onFinally();
-}
-
 interface LLMConfig {
   baseUrl: string;
   apiKey: string;
@@ -245,15 +181,20 @@ const plugin: MainPlugin = {
       }
 
       // Start streaming
-      runLoggedLLM(
-        config,
-        params.mode,
-        messages[0]?.content || "",
-        messages[1]?.content || "",
-        controller.signal,
-        send,
-        () => activeRequests.delete(requestId),
-      );
+      streamLLM({
+        baseUrl: config.baseUrl,
+        apiKey: config.apiKey,
+        model: config.model,
+        temperature: config.temperature,
+        maxTokens: config.maxTokens,
+        messages,
+        signal: controller.signal,
+        onChunk: (chunk) => send("streamChunk", { content: chunk }),
+        onDone: (fullText) => send("streamDone", { fullText }),
+        onError: (message, code) => send("streamError", { message, code }),
+      }).finally(() => {
+        activeRequests.delete(requestId);
+      });
 
       return { success: true };
     }, { noPrefix: true });
@@ -298,9 +239,7 @@ const plugin: MainPlugin = {
       const prompt = PROMPTS.workshopAnalyze.replace("{{chapter}}", content);
       console.log("[agent] workshopStart: content length =", content.length, "chars");
 
-      const wsLog = logLlmCall("workshop-analyze", "You are a strict writing workshop mentor. Return ONLY valid JSON.", prompt);
-
-      streamLLMWithLog({
+      streamLLM({
         baseUrl: config.baseUrl,
         apiKey: config.apiKey,
         model: config.model,
@@ -382,15 +321,27 @@ const plugin: MainPlugin = {
       prompt = prompt.replace("{{history}}", historyText || "(初次讨论)");
       prompt = prompt.replace("{{answers}}", answersText);
 
-      runLoggedLLM(
-        config,
-        "workshop-discuss",
-        "You are a writing workshop mentor. Always respond in Chinese.",
-        prompt,
-        controller.signal,
-        send,
-        () => activeRequests.delete("workshop_answer_" + params.fragmentId),
-      );
+      streamLLM({
+        baseUrl: config.baseUrl,
+        apiKey: config.apiKey,
+        model: config.model,
+        temperature: 0.7,
+        maxTokens: config.maxTokens,
+        messages: [
+          { role: "system", content: "You are a writing workshop mentor. Always respond in Chinese." },
+          { role: "user", content: prompt },
+        ],
+        signal: controller.signal,
+        onChunk: (chunk) => send("streamChunk", { content: chunk }),
+        onDone: (fullText) => {
+          send("streamDone", { fullText });
+          activeRequests.delete("workshop_answer_" + params.fragmentId);
+        },
+        onError: (message, code) => {
+          send("streamError", { message, code });
+          activeRequests.delete("workshop_answer_" + params.fragmentId);
+        },
+      });
 
       return { success: true };
     }, { noPrefix: true });
@@ -417,15 +368,27 @@ const plugin: MainPlugin = {
       prompt = prompt.replace("{{chapter}}", fragments[0].content);
       prompt = prompt.replace("{{discussion}}", params.discussion);
 
-      runLoggedLLM(
-        config,
-        "workshop-revise",
-        "You are a senior literary editor revising based on workshop feedback.",
-        prompt,
-        controller.signal,
-        send,
-        () => activeRequests.delete("workshop_revise_" + params.fragmentId),
-      );
+      streamLLM({
+        baseUrl: config.baseUrl,
+        apiKey: config.apiKey,
+        model: config.model,
+        temperature: config.temperature,
+        maxTokens: config.maxTokens,
+        messages: [
+          { role: "system", content: "You are a senior literary editor revising based on workshop feedback." },
+          { role: "user", content: prompt },
+        ],
+        signal: controller.signal,
+        onChunk: (chunk) => send("streamChunk", { content: chunk }),
+        onDone: (fullText) => {
+          send("streamDone", { fullText });
+          activeRequests.delete("workshop_revise_" + params.fragmentId);
+        },
+        onError: (message, code) => {
+          send("streamError", { message, code });
+          activeRequests.delete("workshop_revise_" + params.fragmentId);
+        },
+      });
 
       return { success: true };
     }, { noPrefix: true });

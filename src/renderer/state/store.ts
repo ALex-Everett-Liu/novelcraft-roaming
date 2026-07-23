@@ -1,8 +1,6 @@
-import { signal, computed } from "@preact/signals";
+import { signal } from "@preact/signals";
 import type { Fragment, Chapter, Project, LLMConfig, AgentMode, WorkshopState } from "../../shared/types";
 import { api } from "../rpc/api";
-
-const STORAGE_KEY = "novelcraft_last_project";
 
 export interface AppState {
   project: Project | null;
@@ -43,21 +41,14 @@ class Store {
     this.update({ loading: true });
 
     try {
-      // Try to find existing project or create default
-      const existingId = localStorage.getItem(STORAGE_KEY);
       let project: Project | null = null;
 
-      if (existingId) {
-        const res = await api.projectGet(existingId);
-        if (res.success && res.data) project = res.data;
-      }
-
-      if (!project) {
+      const listRes = await api.projectsList();
+      if (listRes.success && listRes.data && listRes.data.length > 0) {
+        project = listRes.data[0];
+      } else {
         const res = await api.projectCreate({ name: "Untitled Project" });
-        if (res.success && res.data) {
-          project = res.data;
-          localStorage.setItem(STORAGE_KEY, project.id);
-        }
+        if (res.success && res.data) project = res.data;
       }
 
       if (project) {
@@ -94,6 +85,22 @@ class Store {
     if (res.success && res.data) {
       this.update({ chapters: res.data });
     }
+  }
+
+  async switchProject(project: Project): Promise<void> {
+    this.update({
+      project,
+      fragments: [],
+      chapters: [],
+      selectedFragmentIds: [],
+      focusedFragmentId: null,
+      agentMode: null,
+      streamText: "",
+      streamComplete: false,
+      workshopState: null,
+    });
+    await this.loadFragments();
+    await this.loadChapters();
   }
 
   async createFragment(content?: string): Promise<Fragment | null> {

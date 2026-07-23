@@ -27,6 +27,8 @@ export const api = {
     req<RpcResult<Project>>("projectCreate", params),
   projectGet: (id: string) =>
     req<RpcResult<Project>>("projectGet", { id }),
+  projectsList: () =>
+    req<RpcResult<Project[]>>("projectsList", {}),
 
   // Fragments
   fragmentsList: (projectId: string) =>

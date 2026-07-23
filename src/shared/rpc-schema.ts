@@ -27,6 +27,7 @@ export type NovelCraftRPCType = {
       // Project
       projectCreate: { params: CreateProjectParams; response: RpcResult<Project> };
       projectGet: { params: { id: string }; response: RpcResult<Project> };
+      projectsList: { params: {}; response: RpcResult<Project[]> };
 
       // Fragments
       fragmentsList: { params: { projectId: string }; response: RpcResult<Fragment[]> };

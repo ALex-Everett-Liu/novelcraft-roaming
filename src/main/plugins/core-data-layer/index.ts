@@ -192,6 +192,14 @@ const plugin: MainPlugin = {
       };
     }, { noPrefix: true });
 
+    ctx.registerRpcHandler("projectsList", () => {
+      const rows = db.query("SELECT * FROM projects ORDER BY created_at ASC").all() as Record<string, unknown>[];
+      return {
+        success: true,
+        data: rows.map((r) => ({ id: r.id, name: r.name, createdAt: r.created_at, updatedAt: r.updated_at })),
+      };
+    }, { noPrefix: true });
+
     ctx.registerRpcHandler("fragmentsList", (params: { projectId: string }) => {
       const rows = listFragments.all({ $projectId: params.projectId }) as Record<string, unknown>[];
       return { success: true, data: rows.map(mapFragment) };
