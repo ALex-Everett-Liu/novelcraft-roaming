@@ -6,9 +6,39 @@ All notable changes to the NovelCraft Roaming project.
 
 ### Added
 
-### Fixed
+- **14-dimension protagonist psychology archive**: `ProtagonistProfile` with 8 original GengBi dimensions (basicAnchors, personalitySystem, motivationSystem, emotionDefense, behaviorFingerprint, relationshipCoordinate, growthArc, oocRedlines) plus 6 new dimensions:
+  - **epistemicState**: knowledge asymmetry model (known facts, false beliefs, secrets, blind spots, epistemic authority)
+  - **narrativeVoice**: internal thought style, self-address, rumination pattern, unreliable narration tendency, metaphor system
+  - **worldInteraction**: protagonist-world bridge layer — rule awareness, rule attitude, unique abilities in world, social position, arc constraints
+  - **culturalScripts**: Bourdieu class habitus, gender scripts, Haidt moral foundations, honor vs dignity culture, filial piety complex, tribal identity
+  - **selfContradictions**: core paradox, situational self-switching, value conflicts, aspirational vs actual self, self-deception mechanisms
+  - **embodiedExperience**: dominant sensory channel, body awareness, Damasio somatic markers, pain response, physical presence, fatigue patterns
+  - Theoretical basis: Erikson, Freud, OCEAN, Bowlby/Ainsworth attachment, Maslow, Schwartz values, Adler lifestyle, Anna Freud defenses, Ekman non-verbal communication, Damasio somatic markers, Bourdieu habitus, Haidt moral foundations, Campbell hero's journey
+
+- **7-dimension world ontology extraction**: `WorldOntology` (existentialTopology, causalArchitecture, spatioTemporalOntology, informationEpistemology, axiologicalFoundation, becomingDynamics, narrativeOntology) with multi-batch token-split extraction and LLM semantic merge
+
+- **`core-context-extractor`** main plugin: batched LLM extraction service with js-tiktoken `o200k_base` token counting, batch splitting on fragment boundaries, incremental batch extraction with prior-profile injection, field-level merge rules (overwrite vs length heuristic), multi-batch LLM semantic merge, fire-and-forget RPC handlers
+
+- **Bridge extraction**: automatically triggered after both protagonist and world ontology profiles exist — LLM analyzes interaction between character psychology and world rules, returns `worldInteraction` fixes, `profileAmendments`, and `arcConstraints`
+
+- **Dynamic incremental updates**: subsequent extractions inject the previous profile as "current knowledge" — LLM deepens/corrects/supplements rather than starting from scratch
+
+- **Profile injection into all agent modes**: every prompt (Polish, Bridge, Splice, Expand, Diverge, Continue, Complete, Workshop Analyze, Workshop Revise) now includes `{{protagonist_profile}}` and `{{world_ontology}}` placeholders, auto-injected from DB during `agentRun` and `workshopStart`
+
+- **Extraction RPCs**: `protagonistExtract`, `worldOntologyExtract`, `bridgeExtract`, `extractionCancel`, `protagonistGet`, `worldOntologyGet`, `novelProfileSave` with streaming progress messages (`extractionChunk`, `extractionDone`, `extractionError`, `extractionProgress`)
+
+- **Extraction UI**: "Extract Profile" and "Extract Worldview" buttons in toolbar with progress indicator, cancel button, and status display; workshop mode shows tip when no profile exists
+
+- **Foldable profile viewer**: 14-dim / 7-dim JSON viewer in output panel with dimension-level collapse/expand, tabbed protagonist/worldview switching, field-level key-value display
+
+- **NovelProfile settings tab**: LLM-extracted + user-editable metadata (title, author, protagonist, synopsis, world setting, writing style) with save button; auto-filled from protagonist extraction `basicAnchors`
+
+- **DB migrations**: `ALTER TABLE projects ADD COLUMN novel_profile`, `protagonist_profile`, `world_ontology` (TEXT, JSON-encoded)
 
 ### Changed
+
+- **Project mapping**: `projectsList` / `projectGet` / `projectCreate` now return `novelProfile`, `protagonistProfile`, `worldOntology` fields (deserialized from JSON)
+- **Workshop analyze**: now includes protagonist profile and world ontology in system context for more informed critique questions
 
 ## [0.1.1] - 2026-07-23
 

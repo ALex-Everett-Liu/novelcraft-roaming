@@ -20,10 +20,14 @@ pluginManager.setSendMessage((channel, payload) => rpcSend(channel, payload));
 
 await pluginManager.loadAll();
 
+console.log("[NovelCraft] Plugins loaded. Loaded set:", [...(pluginManager as any).loadedPlugins]);
+
 let hasUnsavedChanges = false;
 let userConfirmedQuitDespiteUnsaved = false;
 
 const baseHandlers = pluginManager.buildRpcHandlers();
+const handlerKeys = Object.keys(baseHandlers.requests);
+console.log("[NovelCraft] RPC handlers registered:", handlerKeys.join(", "));
 const mutatingOps = [
   "projectCreate",
   "fragmentsCreate", "fragmentsUpdate", "fragmentsDelete", "fragmentsReorder",

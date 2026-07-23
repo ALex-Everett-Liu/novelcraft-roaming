@@ -165,6 +165,12 @@ const plugin: MainPlugin = {
       ALTER TABLE projects ADD COLUMN world_ontology TEXT
     `);
 
+    ctx.runMigration(4, "fix_self_enabled_state", `
+      UPDATE _plugin_state SET enabled = 1 WHERE plugin_id = 'core-context-extractor' AND enabled = 0
+    `);
+
+    console.log("[ContextExtractor] Plugin loaded, DB migrations applied. Checking RPC registration...");
+
     function saveProfile(projectId: string, field: string, value: string | null): void {
       const ts = String(Date.now());
       if (value !== null) {

@@ -72,9 +72,16 @@ export class PluginManager {
       | { enabled: number }
       | null;
     if (!row) {
-      const enabled = manifest.essential ?? manifest.enabledByDefault !== false ? 1 : 0;
+      const enabled = (manifest.essential || manifest.enabledByDefault !== false) ? 1 : 0;
       this.db.run("INSERT INTO _plugin_state (plugin_id, enabled) VALUES (?, ?)", [manifest.id, enabled]);
       if (enabled) this.enabledPlugins.add(manifest.id);
+      console.log(`[PluginManager] Registered new plugin "${manifest.id}" — enabled=${enabled}`);
+    } else if (row.enabled === 0 && (manifest.essential || manifest.enabledByDefault !== false)) {
+      this.db.run("UPDATE _plugin_state SET enabled = 1 WHERE plugin_id = ?", [manifest.id]);
+      this.enabledPlugins.add(manifest.id);
+      console.log(`[PluginManager] Corrected stale state for "${manifest.id}": enabled=0 -> 1`);
+    } else {
+      console.log(`[PluginManager] Plugin "${manifest.id}" already in DB — enabled=${row.enabled}`);
     }
   }
 
@@ -168,6 +175,15 @@ export class PluginManager {
 
         // LLM Logs
         getLlmLogs: (p: any) => wrap("getLlmLogs", r.get("getLlmLogs"))(p),
+
+        // Context Extraction
+        protagonistExtract: (p: any) => wrap("protagonistExtract", r.get("protagonistExtract"))(p),
+        worldOntologyExtract: (p: any) => wrap("worldOntologyExtract", r.get("worldOntologyExtract"))(p),
+        bridgeExtract: (p: any) => wrap("bridgeExtract", r.get("bridgeExtract"))(p),
+        extractionCancel: (p: any) => wrap("extractionCancel", r.get("extractionCancel"))(p),
+        protagonistGet: (p: any) => wrap("protagonistGet", r.get("protagonistGet"))(p),
+        worldOntologyGet: (p: any) => wrap("worldOntologyGet", r.get("worldOntologyGet"))(p),
+        novelProfileSave: (p: any) => wrap("novelProfileSave", r.get("novelProfileSave"))(p),
       },
     };
   }
