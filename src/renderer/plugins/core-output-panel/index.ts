@@ -130,9 +130,7 @@ function mount() {
   }
 
   renderOutput();
-  const unsubscribe = store.state.subscribe(() => renderOutput());
   return () => {
-    unsubscribe();
     container?.remove();
     container = null;
   };

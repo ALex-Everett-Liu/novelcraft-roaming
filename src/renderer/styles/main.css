@@ -344,14 +344,33 @@ body {
 }
 
 .editor-title {
-  padding: 8px 0;
+  padding: 0 0 6px;
   border: none;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid transparent;
   background: transparent;
   color: var(--text);
   font-size: 1.1rem;
+  font-weight: 600;
   font-family: var(--font-sans);
   outline: none;
+}
+
+.editor-title:focus {
+  border-bottom-color: var(--accent);
+}
+
+.editor-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.fragment-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 12px 16px;
 }
 
 .editor-title:focus {

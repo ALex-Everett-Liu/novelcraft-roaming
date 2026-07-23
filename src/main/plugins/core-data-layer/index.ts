@@ -177,6 +177,7 @@ const plugin: MainPlugin = {
       type?: string;
       order?: number;
     }) => {
+      console.log("[data-layer] fragmentsCreate called:", params.projectId, "content:", params.content.slice(0, 50));
       const id = Bun.randomUUIDv7();
       const ts = now();
       const maxRow = getMaxOrder.get({ $projectId: params.projectId }) as Record<string, unknown>;

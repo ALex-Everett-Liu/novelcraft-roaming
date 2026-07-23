@@ -94,9 +94,7 @@ function mount() {
   }
 
   renderEditor();
-  const unsubscribe = store.state.subscribe(() => renderEditor());
   return () => {
-    unsubscribe();
     container?.remove();
     container = null;
   };

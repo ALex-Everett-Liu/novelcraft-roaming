@@ -98,12 +98,17 @@ class Store {
 
   async createFragment(content?: string): Promise<Fragment | null> {
     const project = this.state.value.project;
-    if (!project) return null;
+    if (!project) {
+      console.error("[store] createFragment: no project loaded");
+      return null;
+    }
 
     const res = await api.fragmentsCreate({
       projectId: project.id,
       content: content ?? "",
     });
+
+    console.log("[store] fragmentsCreate response:", res);
 
     if (res.success && res.data) {
       const fragment = res.data;
@@ -118,7 +123,9 @@ class Store {
   }
 
   async updateFragment(id: string, updates: Record<string, any>): Promise<void> {
+    console.log("[store] updateFragment called:", id, updates);
     const res = await api.fragmentsUpdate({ id, ...updates });
+    console.log("[store] fragmentsUpdate response:", res);
     if (res.success && res.data) {
       const fragments = this.state.value.fragments.map((f) =>
         f.id === id ? res.data! : f

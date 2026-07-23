@@ -66,10 +66,7 @@ function mount() {
   }
 
   renderPanel();
-  const unsubscribe = store.state.subscribe(() => renderPanel());
-
   return () => {
-    unsubscribe();
     container?.remove();
     container = null;
   };

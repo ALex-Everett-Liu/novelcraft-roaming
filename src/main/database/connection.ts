@@ -12,8 +12,13 @@ export function getDataDir(): string {
   if (process.env.ELECTROBUN_APP_DATA) {
     return path.resolve(process.env.ELECTROBUN_APP_DATA);
   }
+
   let dir = path.resolve(".");
   for (let i = 0; i < 6; i++) {
+    // Dev: look for a project root (has electrobun.config.ts) and use its data/ dir
+    if (existsSync(path.join(dir, "electrobun.config.ts"))) {
+      return path.join(dir, "data");
+    }
     const candidate = path.join(dir, "data");
     if (existsSync(path.join(candidate, DB_FILENAME))) {
       return candidate;
@@ -22,6 +27,7 @@ export function getDataDir(): string {
     if (parent === dir) break;
     dir = parent;
   }
+
   return Utils.paths.userData;
 }
 

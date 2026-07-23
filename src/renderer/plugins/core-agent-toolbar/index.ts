@@ -88,9 +88,7 @@ function mount() {
   }
 
   renderToolbar();
-  const unsubscribe = store.state.subscribe(() => renderToolbar());
   return () => {
-    unsubscribe();
     container?.remove();
     container = null;
   };

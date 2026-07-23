@@ -11,7 +11,14 @@ export function initApi(request: RequestFn): void {
 
 function req<T>(method: string, params?: any): Promise<T> {
   if (!rpcRequest) throw new Error("API not initialized");
-  return rpcRequest(method, params ?? {});
+  console.log("[api] RPC ->", method, params);
+  return rpcRequest(method, params ?? {}).then((result: any) => {
+    console.log("[api] RPC <-", method, JSON.stringify(result).slice(0, 120));
+    return result;
+  }).catch((err: any) => {
+    console.error("[api] RPC ERR", method, err);
+    throw err;
+  });
 }
 
 export const api = {
