@@ -242,9 +242,76 @@ function ExtractionView() {
     `;
   }
 
+  const diff = extraction.diff;
+  const [showFullProfile, setShowFullProfile] = useState(false);
+
+  if (showFullProfile) {
+    return html`<${ProfileViewer} />`;
+  }
+
   return html`
     <div class="output-container">
-      <div class="extraction-done">${extraction.statusMessage}</div>
+      <div class="extraction-done">
+        <span class="extraction-done-icon">&#10003;</span>
+        ${extraction.statusMessage}
+      </div>
+
+      ${diff && diff.changes && diff.changes.length > 0 && html`
+        <div class="extraction-diff">
+          <div class="extraction-diff-header">
+            <span class="extraction-diff-title">Changes (${diff.changes.length})</span>
+            <span class="extraction-diff-summary">${diff.summary}</span>
+          </div>
+
+          <div class="extraction-diff-list">
+            ${diff.changes.map((c: any) => html`
+              <div class="extraction-diff-item extraction-diff-${c.kind}">
+                <span class="diff-kind diff-kind-${c.kind}">${c.kind === "added" ? "+" : c.kind === "removed" ? "-" : "~"}</span>
+                <span class="diff-location">${c.dim}.<em>${c.field}</em></span>
+                <div class="diff-values">
+                  ${c.before !== undefined && c.before !== null && html`
+                    <div class="diff-before">
+                      <span class="diff-label">- old:</span>
+                      <span class="diff-text">${typeof c.before === "string" ? c.before : JSON.stringify(c.before)}</span>
+                    </div>
+                  `}
+                  ${c.after !== undefined && c.after !== null && html`
+                    <div class="diff-after">
+                      <span class="diff-label">+ new:</span>
+                      <span class="diff-text">${typeof c.after === "string" ? c.after : JSON.stringify(c.after)}</span>
+                    </div>
+                  `}
+                </div>
+              </div>
+            `)}
+          </div>
+        </div>
+      `}
+
+      ${diff && diff.wasIncremental && diff.changes && diff.changes.length === 0 && html`
+        <div class="extraction-diff extraction-diff-none">
+          No changes — new extraction is identical to previous profile.
+        </div>
+      `}
+
+      ${!diff && html`
+        <div class="extraction-diff extraction-diff-none">
+          Initial extraction (no previous profile to diff against)
+        </div>
+      `}
+
+      ${extraction.snapshotPath && html`
+        <div class="extraction-snapshot">
+          Snapshot saved to: ${extraction.snapshotPath}
+        </div>
+      `}
+
+      <button
+        class="extraction-view-profile-btn"
+        onClick=${() => setShowFullProfile(true)}
+      >
+        View Full Profile
+      </button>
     </div>
   `;
 }
@@ -415,13 +482,7 @@ function OutputPanel() {
 
   // ─── Extraction active ─────────────────────────────
   if (extraction) {
-    if (!extraction.complete) {
-      return html`<${ExtractionView} />`;
-    }
-    // Extraction complete — show profiles if available, else done message
-    if (protagonistProfile || worldOntology) {
-      return html`<${ProfileViewer} />`;
-    }
+    // Show diff + "View Full Profile" on completion, streaming view while in progress
     return html`<${ExtractionView} />`;
   }
 

@@ -11,6 +11,9 @@ export interface ExtractionState {
   error: string;
   batch: number;
   totalBatches: number;
+  diff?: any | null;
+  previousProfile?: any | null;
+  snapshotPath?: string | null;
 }
 
 export interface AppState {
@@ -241,11 +244,11 @@ class Store {
     this.update({ extraction: { ...e, batch, totalBatches } });
   }
 
-  completeExtraction(type: string, result: any, statusMessage: string): void {
+  completeExtraction(type: string, result: any, statusMessage: string, diff?: any, previousProfile?: any, snapshotPath?: string): void {
     const e = this.state.value.extraction;
     if (!e || e.type !== type) return;
     this.update({
-      extraction: { ...e, complete: true, result, statusMessage },
+      extraction: { ...e, complete: true, result, statusMessage, diff, previousProfile, snapshotPath },
       ...(type === "protagonist" ? { protagonistProfile: result } : {}),
       ...(type === "worldview" ? { worldOntology: result } : {}),
     });

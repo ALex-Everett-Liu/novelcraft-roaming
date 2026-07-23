@@ -53,8 +53,8 @@ const rpc = Electroview.defineRPC<NovelCraftRPCType>({
       extractionChunk: ({ type, content }: { type: string; content: string }) => {
         store.appendExtractionChunk(type, content);
       },
-      extractionDone: ({ type, result, statusMessage }: { type: string; result: any; statusMessage: string }) => {
-        store.completeExtraction(type, result, statusMessage);
+      extractionDone: ({ type, result, statusMessage, diff, previousProfile, snapshotPath }: { type: string; result: any; statusMessage: string; diff?: any; previousProfile?: any; snapshotPath?: string }) => {
+        store.completeExtraction(type, result, statusMessage, diff, previousProfile, snapshotPath);
       },
       extractionError: ({ type, message }: { type: string; message: string }) => {
         store.errorExtraction(type, message);

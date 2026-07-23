@@ -1123,6 +1123,143 @@ body {
   font-weight: 600;
 }
 
+.extraction-done-icon {
+  margin-right: 6px;
+}
+
+/* ─── Extraction Diff ──────────────────── */
+.extraction-diff {
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.extraction-diff-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  background: var(--bg-hover);
+  border-bottom: 1px solid var(--border);
+}
+
+.extraction-diff-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.extraction-diff-summary {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.extraction-diff-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.extraction-diff-item {
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  font-size: 0.72rem;
+}
+
+.extraction-diff-item:last-child {
+  border-bottom: none;
+}
+
+.extraction-diff-added {
+  background: rgba(74, 222, 128, 0.06);
+}
+
+.extraction-diff-changed {
+  background: rgba(250, 204, 21, 0.06);
+}
+
+.extraction-diff-removed {
+  background: rgba(229, 115, 115, 0.06);
+}
+
+.diff-kind {
+  display: inline-block;
+  width: 16px;
+  margin-right: 6px;
+  font-family: monospace;
+  font-weight: 700;
+}
+
+.diff-kind-added { color: #4ade80; }
+.diff-kind-changed { color: #facc15; }
+.diff-kind-removed { color: #e57373; }
+
+.diff-location {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.diff-location em {
+  font-style: normal;
+  color: var(--accent);
+}
+
+.diff-values {
+  margin-top: 3px;
+  margin-left: 22px;
+}
+
+.diff-before, .diff-after {
+  font-size: 0.68rem;
+  margin-bottom: 2px;
+}
+
+.diff-label {
+  color: var(--text-muted);
+  margin-right: 4px;
+  font-family: monospace;
+  font-size: 0.65rem;
+}
+
+.diff-text {
+  color: var(--text-muted);
+  word-break: break-all;
+}
+
+.extraction-diff-none {
+  margin-top: 12px;
+  padding: 10px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-style: italic;
+}
+
+.extraction-snapshot {
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: var(--bg-hover);
+  border-radius: 3px;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  font-family: monospace;
+  word-break: break-all;
+}
+
+.extraction-view-profile-btn {
+  margin-top: 12px;
+  padding: 6px 16px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.extraction-view-profile-btn:hover {
+  background: rgba(99, 102, 241, 0.1);
+}
+
 /* ─── Profile Viewer ───────────────────── */
 .profile-viewer {
   display: flex;

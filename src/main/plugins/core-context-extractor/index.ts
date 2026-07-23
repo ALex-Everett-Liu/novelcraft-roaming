@@ -14,7 +14,7 @@ import {
 } from "./types";
 import { splitFragmentsByTokenLimit, buildChaptersText } from "./tokenize";
 import path from "path";
-import { existsSync, readFileSync } from "fs";
+import { existsSync, readFileSync, mkdirSync, writeFileSync } from "fs";
 import { getDataDir } from "../../database/connection";
 
 interface LLMConfig {
@@ -84,6 +84,169 @@ function safeSerialize(value: any): string {
     return JSON.stringify(value);
   } catch {
     return String(value);
+  }
+}
+
+interface DiffEntry {
+  dim: string;
+  field: string;
+  kind: "added" | "changed" | "removed";
+  before: any;
+  after: any;
+}
+
+interface DiffResult {
+  summary: string;
+  changes: DiffEntry[];
+  newDimensionCount: number;
+  changedDimensionCount: number;
+  unaffectedDimensionCount: number;
+  wasIncremental: boolean;
+}
+
+function computeProfileDiff(
+  oldProfile: Record<string, any> | null,
+  newProfile: Record<string, any>,
+): DiffResult {
+  const changes: DiffEntry[] = [];
+
+  const oldDims = oldProfile ? Object.keys(oldProfile) : [];
+  const oldDimSet = new Set(oldDims);
+
+  for (const dim of Object.keys(newProfile)) {
+    const oldVal = oldProfile?.[dim];
+    const newVal = newProfile[dim];
+
+    if (!oldDimSet.has(dim)) {
+      changes.push({
+        dim,
+        field: "(entire dimension)",
+        kind: "added",
+        before: null,
+        after: newVal,
+      });
+      continue;
+    }
+
+    if (typeof newVal === "object" && newVal !== null && !Array.isArray(newVal) &&
+        typeof oldVal === "object" && oldVal !== null && !Array.isArray(oldVal)) {
+      for (const field of Object.keys(newVal)) {
+        const oldFieldVal = oldVal[field];
+        const newFieldVal = newVal[field];
+        const oldIsStr = typeof oldFieldVal === "string";
+        const newIsStr = typeof newFieldVal === "string";
+
+        if (oldFieldVal === undefined) {
+          changes.push({
+            dim,
+            field,
+            kind: "added",
+            before: null,
+            after: newFieldVal,
+          });
+        } else if (oldIsStr && newIsStr && oldFieldVal !== newFieldVal) {
+          const oldLen = oldFieldVal.length;
+          const newLen = newFieldVal.length;
+          const showOld = oldLen <= 80 ? oldFieldVal : oldFieldVal.slice(0, 60) + " ...";
+          const showNew = newLen <= 80 ? newFieldVal : newFieldVal.slice(0, 60) + " ...";
+          const lenDelta = newLen - oldLen;
+          changes.push({
+            dim,
+            field,
+            kind: "changed",
+            before: `${showOld}${oldLen > 80 ? ` (${oldLen} chars)` : ""}`,
+            after: `${showNew}${newLen > 80 ? ` (${newLen} chars)` : ""} [${lenDelta >= 0 ? "+" : ""}${lenDelta} chars]`,
+          });
+        } else if (oldIsStr && !newIsStr && newFieldVal) {
+          changes.push({
+            dim,
+            field,
+            kind: "changed",
+            before: oldFieldVal,
+            after: JSON.stringify(newFieldVal).slice(0, 80),
+          });
+        } else if (JSON.stringify(oldFieldVal) !== JSON.stringify(newFieldVal)) {
+          changes.push({
+            dim,
+            field,
+            kind: "changed",
+            before: oldFieldVal,
+            after: newFieldVal,
+          });
+        }
+      }
+
+      for (const field of Object.keys(oldVal || {})) {
+        if (!(field in newVal)) {
+          changes.push({
+            dim: dim,
+            field,
+            kind: "removed",
+            before: oldVal[field],
+            after: null,
+          });
+        }
+      }
+    } else if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+      changes.push({
+        dim,
+        field: "(entire dimension)",
+        kind: "changed",
+        before: oldVal,
+        after: newVal,
+      });
+    }
+  }
+
+  const changedDims = new Set(changes.map((c) => c.dim));
+  const addedCount = changes.filter((c) => c.kind === "added").length;
+  const changedCount = changes.filter((c) => c.kind === "changed").length;
+  const removedCount = changes.filter((c) => c.kind === "removed").length;
+
+  const parts: string[] = [];
+  if (addedCount > 0) parts.push(`${addedCount} fields added`);
+  if (changedCount > 0) parts.push(`${changedCount} fields changed`);
+  if (removedCount > 0) parts.push(`${removedCount} fields removed`);
+  const summary = changes.length === 0
+    ? "No changes (identical to previous profile)"
+    : parts.join(", ");
+
+  return {
+    summary,
+    changes,
+    newDimensionCount: Object.keys(newProfile).filter((d) => !oldDimSet.has(d)).length,
+    changedDimensionCount: changedDims.size,
+    unaffectedDimensionCount: Object.keys(newProfile).filter((d) => !changedDims.has(d) && oldDimSet.has(d)).length,
+    wasIncremental: oldProfile !== null,
+  };
+}
+
+function saveVersionSnapshot(
+  projectId: string,
+  type: ExtractionType,
+  result: Record<string, any>,
+): string | null {
+  try {
+    const dataDir = path.join(getDataDir(), "extraction-history");
+    if (!existsSync(dataDir)) {
+      mkdirSync(dataDir, { recursive: true });
+    }
+    const ts = new Date().toISOString().replace(/[:.]/g, "-");
+    const filename = `${projectId}_${type}_${ts}.json`;
+    const filepath = path.join(dataDir, filename);
+    writeFileSync(filepath, JSON.stringify(result, null, 2), "utf-8");
+    // Also update a combined index file
+    const indexFile = path.join(dataDir, `${projectId}_index.json`);
+    let index: any[] = [];
+    if (existsSync(indexFile)) {
+      index = JSON.parse(readFileSync(indexFile, "utf-8"));
+    }
+    index.push({ type, timestamp: new Date().toISOString(), file: filename });
+    writeFileSync(indexFile, JSON.stringify(index, null, 2), "utf-8");
+    return filepath;
+  } catch (e) {
+    console.error("[extractor] Failed to save version snapshot:", e);
+    return null;
   }
 }
 
@@ -271,8 +434,14 @@ const plugin: MainPlugin = {
 
         if (type === "protagonist") {
           prompt = prompt.replace("{{accumulatedProfile}}", accumulatedText);
+          prompt = prompt.replace("{{existingProfile}}", existingProfile
+            ? JSON.stringify(existingProfile, null, 2)
+            : "（无已有档案）");
         } else {
           prompt = prompt.replace("{{accumulatedOntology}}", accumulatedText);
+          prompt = prompt.replace("{{existingOntology}}", existingProfile
+            ? JSON.stringify(existingProfile, null, 2)
+            : "（无已有档案）");
         }
 
         // Extraction with retry
@@ -391,10 +560,16 @@ const plugin: MainPlugin = {
         db.run("UPDATE projects SET world_ontology = ?, updated_at = ? WHERE id = ?", [JSON.stringify(accumulated), ts, params.projectId]);
       }
 
+      const diff = computeProfileDiff(existingProfile, accumulated);
+      const snapshotPath = saveVersionSnapshot(params.projectId, type, accumulated);
+
       send("extractionDone", {
         type,
         result: accumulated,
         statusMessage: batchCount === 1 ? "提取完成（1 批次）" : `提取完成（${batchCount} 批次，已合并）`,
+        diff,
+        previousProfile: existingProfile,
+        snapshotPath,
       });
     };
 

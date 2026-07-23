@@ -90,6 +90,11 @@ function AgentToolbar() {
 
   const isExtracting = extraction && !extraction.complete;
 
+  const extractScoped = selectedCount > 0;
+  const extractScopeLabel = extractScoped ? ` from ${selectedCount} selected fragment${selectedCount > 1 ? "s" : ""}` : " from ALL fragments";
+  const extractProtagonistLabel = (protagonistProfile ? "Update Profile" : "Extract Profile") + (extractScoped ? ` (${selectedCount})` : "");
+  const extractWorldviewLabel = (worldOntology ? "Update Worldview" : "Extract Worldview") + (extractScoped ? ` (${selectedCount})` : "");
+
   return html`
     <div class="agent-modes">
       <div class="agent-modes-grid">
@@ -113,17 +118,17 @@ function AgentToolbar() {
             class="extract-btn"
             onClick=${() => handleExtract("protagonist")}
             disabled=${isExtracting}
-            title="Extract 14-dim psychology profile from all fragments"
+            title=${"Extract 14-dim psychology profile" + extractScopeLabel}
           >
-            ${protagonistProfile ? "Update Profile" : "Extract Profile"}
+            ${extractProtagonistLabel}
           </button>
           <button
             class="extract-btn"
             onClick=${() => handleExtract("worldview")}
             disabled=${isExtracting}
-            title="Extract 7-dim world ontology from all fragments"
+            title=${"Extract 7-dim world ontology" + extractScopeLabel}
           >
-            ${worldOntology ? "Update Worldview" : "Extract Worldview"}
+            ${extractWorldviewLabel}
           </button>
         </div>
         ${isExtracting && html`
