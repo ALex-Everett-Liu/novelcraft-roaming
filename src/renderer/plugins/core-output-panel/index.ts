@@ -415,6 +415,13 @@ function OutputPanel() {
 
   // ─── Extraction active ─────────────────────────────
   if (extraction) {
+    if (!extraction.complete) {
+      return html`<${ExtractionView} />`;
+    }
+    // Extraction complete — show profiles if available, else done message
+    if (protagonistProfile || worldOntology) {
+      return html`<${ProfileViewer} />`;
+    }
     return html`<${ExtractionView} />`;
   }
 

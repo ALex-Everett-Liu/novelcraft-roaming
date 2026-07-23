@@ -13,7 +13,8 @@ function req<T>(method: string, params?: any): Promise<T> {
   if (!rpcRequest) throw new Error("API not initialized");
   console.log("[api] RPC ->", method, params);
   return rpcRequest(method, params ?? {}).then((result: any) => {
-    console.log("[api] RPC <-", method, JSON.stringify(result).slice(0, 120));
+    const summary = result === undefined ? "(void)" : JSON.stringify(result).slice(0, 120);
+    console.log("[api] RPC <-", method, summary);
     return result;
   }).catch((err: any) => {
     console.error("[api] RPC ERR", method, err);

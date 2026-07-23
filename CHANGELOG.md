@@ -6,6 +6,16 @@ All notable changes to the NovelCraft Roaming project.
 
 ### Added
 
+### Fixed
+
+### Changed
+
+## [0.1.2] - 2026-07-23
+
+### Added
+
+- **Docs**: `docs/extraction-lessons-learned.md` — 9 lessons from extraction feature implementation (PluginManager operator precedence, buildRpcHandlers hardcoding, chicken-and-egg migration, void RPC logging crash, completion→viewer transition, save/discard integration, fire-and-forget pattern, multi-column update isolation, JSON column parsing)
+
 - **14-dimension protagonist psychology archive**: `ProtagonistProfile` with 8 original GengBi dimensions (basicAnchors, personalitySystem, motivationSystem, emotionDefense, behaviorFingerprint, relationshipCoordinate, growthArc, oocRedlines) plus 6 new dimensions:
   - **epistemicState**: knowledge asymmetry model (known facts, false beliefs, secrets, blind spots, epistemic authority)
   - **narrativeVoice**: internal thought style, self-address, rumination pattern, unreliable narration tendency, metaphor system
@@ -35,10 +45,18 @@ All notable changes to the NovelCraft Roaming project.
 
 - **DB migrations**: `ALTER TABLE projects ADD COLUMN novel_profile`, `protagonist_profile`, `world_ontology` (TEXT, JSON-encoded)
 
+### Fixed
+
+- **PluginManager operator precedence**: `manifest.essential ?? manifest.enabledByDefault !== false ? 1 : 0` evaluated as `(false ?? true) ? 1 : 0` = `0`, disabling non-essential plugins on first registration. Fixed to use `||` instead of `??`.
+- **`buildRpcHandlers()` missing new RPC entries**: `protagonistExtract`, `worldOntologyExtract`, `bridgeExtract`, `extractionCancel`, `protagonistGet`, `worldOntologyGet`, `novelProfileSave` handlers were registered in the registry but never wired in the hardcoded handler mapping
+- **`reportUnsavedState` crash**: `JSON.stringify(undefined)` returned `undefined` (not a string), `.slice()` threw on void RPC responses; fixed with null guard
+- **Extraction completion blocking ProfileViewer**: `ExtractionView` was rendered before `ProfileViewer` even when extraction was complete with data; reordered conditional chain
+
 ### Changed
 
 - **Project mapping**: `projectsList` / `projectGet` / `projectCreate` now return `novelProfile`, `protagonistProfile`, `worldOntology` fields (deserialized from JSON)
 - **Workshop analyze**: now includes protagonist profile and world ontology in system context for more informed critique questions
+- **Settings dialog**: added "Novel" tab with 6 metadata fields (title, author, protagonist, synopsis, world setting, writing style)
 
 ## [0.1.1] - 2026-07-23
 
