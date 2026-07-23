@@ -250,7 +250,7 @@ const plugin: MainPlugin = {
       let fullText = "";
       const prompt = PROMPTS.workshopAnalyze.replace("{{chapter}}", content);
       console.log("[agent] workshopStart: content length =", content.length, "chars, sending to", config.model);
-      llmLogs.push({ ts: new Date().toISOString(), mode: "workshop-analyze", system: "writing workshop mentor", user: content, response: "" });
+      llmLogs.push({ ts: new Date().toISOString(), mode: "workshop-analyze", system: "You are a strict writing workshop mentor. Return ONLY valid JSON.", user: prompt, response: "" });
       const logIdx = llmLogs.length - 1;
 
       streamLLM({

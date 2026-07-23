@@ -6,33 +6,89 @@ All notable changes to the NovelCraft Roaming project.
 
 ### Added
 
-- **Project skeleton**: Electrobun + Bun + Preact + htm + SQLite project at `novelcraft-roaming/`
-- **Plugin system**: full plugin infrastructure (PluginManager, EventBus, DependencyResolver, RpcHandlerRegistry) replicated from mindscape-roaming — 4 main plugins + 4 renderer plugins loaded
-- **core-data-layer** plugin: Fragment/Chapter/Project CRUD with SQLite storage, TEXT export/import, indexed queries
-- **core-settings** plugin: LLM config persistence (JSON file at data dir)
+### Fixed
+
+### Changed
+
+## [0.1.1] - 2026-07-23
+
+### Added
+
+- **Workshop mode (multi-turn)**: copilot-style chat with phases — LLM generates critique questions → user answers → discussion → revise → accept/reject
+  - `workshopStart` RPC: sends selected editor text to LLM, returns 3–5 probing questions with quoted sections
+  - `workshopAnswer` RPC: takes user answers + conversation history, streams discussion analysis
+  - `workshopRevise` RPC: takes full discussion record, streams revised chapter text
+  - `workshopDiscuss` and `workshopRevise` prompt templates in `prompts.ts`
+  - Hybrid UI: question form (first round) → chat (subsequent rounds) → Accept/Reject (revised text)
+  - Selected text from editor textarea passed as `segmentText` to workshop
+
+- **Project switcher**: dropdown in toolbar shows all projects from DB, click to switch (no localStorage dependency)
+
+- **`projectsList` RPC**: lists all projects ordered by `created_at`, used by `initialLoad` instead of localStorage
+
+- **LLM Logs download**: inline logging of every LLM call (mode, system prompt, user prompt, full response); downloadable as `.txt` via toolbar button
+
+- **CJK-aware word count**: `countWords()` in data layer counts each Hanzi/kana/hangul character as one word, remaining text split by whitespace
+
+- **Dev data directory**: `getDataDir()` walks up for `electrobun.config.ts` to find project root, uses `<root>/data/` in dev mode
+
+### Fixed
+
+- **Main→Renderer messages never delivered**: `sendMessage` was registered after `pluginManager.loadAll()`, causing plugins to capture a no-op function. Fixed by setting `sendMessage` before `loadAll` via mutable `rpcSend` reference, plus defining message handler stubs in `BrowserView.defineRPC`.
+
+- **`clearStream()` destroying workshopState**: `store.clearStream()` set `workshopState: null`, nuking LLM questions the moment they arrived. Removed the side effect.
+
+- **`@preact/signals` not tracking root-rendered components**: four renderer plugins use `render(Component, container)` which creates independent Preact roots where signal auto-tracking doesn't work. Added `useState` + `store.state.subscribe()` `forceUpdate` pattern to all four.
+
+- **Workshop LLM calls blocking RPC (timeout)**: `workshopStart`, `workshopAnswer`, `workshopRevise` handlers `await`-ed `streamLLM()`, causing 10s RPC timeout. Changed to fire-and-forget; RPC timeout increased to 60s.
+
+- **Duplicate project created on every launch**: `initialLoad` relied on localStorage which was empty after copying build; created a new "Untitled Project" each time. Now uses `projectsList` from DB directly.
+
+- **Editor textarea not filling panel height**: missing `display: flex` and height chain from `.panel-center` → `.fragment-editor` → `.editor-container` → `textarea`.
+
+- **Settings "Test Connection" succeeding but agentRun failing**: `core-agent-engine` read config from `path.resolve("data")` while `core-settings` wrote via `getDataDir()` — two different paths.
+
+### Changed
+
+- **Defaults**: base URL → `https://api.deepseek.com`, model → `deepseek-chat`, maxTokens → `8192` (user-configurable in Settings)
+- **Config-driven maxTokens**: all hardcoded `maxTokens` values replaced with `config.maxTokens` from user settings
+- **Workshop analysis temperature**: hardcoded to `0.3` (focused critique), discussion uses `0.7` (balanced), other modes use user setting
+- **Settings UI**: tabbed layout (LLM / Theme / Plugins) with plugin enable/disable status
+- **Toolbar**: Signals-based subscription with `forceUpdate`; project name displayed next to title
+
+## [0.1.0] - 2026-07-23 (Initial)
+
+### Added
+
+- **Project skeleton**: Electrobun + Bun + Preact + htm + SQLite project
+- **Plugin system**: full plugin infrastructure (PluginManager, EventBus, DependencyResolver, RpcHandlerRegistry) — 4 main plugins + 4 renderer plugins
+- **core-data-layer** plugin: Fragment/Chapter/Project CRUD with SQLite storage, 5 migrations, TEXT import
+- **core-settings** plugin: LLM config persistence as JSON file
 - **core-llm-client** plugin: OpenAI-compatible SSE streaming HTTP client with abort support
 - **core-agent-engine** plugin: 8 agent modes (Polish, Bridge, Splice, Expand, Diverge, Continue, Complete, Workshop) with embedded prompt templates
 - **core-fragment-panel** renderer plugin: fragment list with type badges, selection, add/delete
 - **core-fragment-editor** renderer plugin: title + content editing with 2s debounced auto-save
 - **core-agent-toolbar** renderer plugin: 8 mode buttons in 4x2 grid with mode highlighting and Run button
-- **core-output-panel** renderer plugin: streaming output display with Accept/Reject buttons; Diverge mode JSON parsing + batch fragment creation; streamComplete state tracking
-- **core-settings-ui** renderer plugin: Settings dialog (LLM config + theme picker) with Ctrl+, shortcut
-- **Main→Renderer message bridge**: plugin sendMessage API via BrowserView RPC transport for SSE streaming chunks
-
-### Fixed
-
-- **Renderer plugins loaded before DOM ready**: moved plugin loading after `store.initialLoad()` in the 300ms deferred `setTimeout`, following the proven mindscape-roaming pattern instead of attempting Preact hooks lifecycle
-- **Missing Electroview RPC bridge in renderer**: `Electroview.defineRPC()` + `initApi()` added to `renderer/index.ts` (was entirely absent, causing "API not initialized" errors)
-- **Removed redundant setInterval polling**: 3 renderer plugins (fragment-panel, fragment-editor, agent-toolbar) had `setInterval(500ms)` re-renders despite already subscribing to `store.state.subscribe()`
-- **Settings modal**: added tabbed UI (LLM / Theme / Plugins) with plugin enable/disable status display
-
-### Changed
-
-- **Settings UI**: reorganized into tabs (LLM / Theme / Plugins) with a dedicated Plugins panel showing all registered plugin names, descriptions, essential badge, and ON/OFF status
-- **Toolbar**: Signals-based subscription (no polling), Settings button, Ctrl+S save shortcut
-- **Four-column layout**: Fragments (240px) | Editor (flex) | Agent Toolbar + Output (360px)
+- **core-output-panel** renderer plugin: streaming output display with Accept/Reject; Diverge JSON parsing + batch fragment creation
+- **Electroview RPC bridge**: `Electroview.defineRPC()` + `initApi()` in `renderer/index.ts`
+- **Main→Renderer message bridge**: plugin `sendMessage` API via `BrowserView.defineRPC` transport for SSE streaming chunks
 - **Save/Discard mechanism**: backup-based with `ensureBackup()`/`commitSave()`/`restoreFromBackup()`
-- **Theme system**: dark/light themes with CSS custom properties (via `themeManager.ts`)
+- **Theme system**: dark/light themes with CSS custom properties (`themeManager.ts`)
 - **Debounce utility**: 500ms standard debounce in `src/renderer/utils/debounce.ts`
 - **Shared type system**: Zod schemas for Fragment, Chapter, Project, LLMConfig, AgentMode, WorkshopState
 - **RPC schema**: typed Electrobun RPC contract for bun↔webview communication
+- **Settings dialog**: LLM config + theme picker with Ctrl+, shortcut and Test Connection button
+
+### Changed
+
+- **Layout**: four-column (Fragments 240px | Editor flex | Agent Toolbar + Output 360px)
+- **Plugin loading**: deferred 300ms via `setTimeout` (matching mindscape-roaming pattern) to allow WebSocket connection
+
+### Fixed
+
+- **Missing Electroview RPC bridge**: added `Electroview.defineRPC()` + `initApi()` (was entirely absent, causing "API not initialized")
+- **Renderer plugins loaded before DOM ready**: moved to `setTimeout` after `initialLoad`
+- **Redundant `setInterval` polling**: removed from 3 renderer plugins (already had `store.state.subscribe()`)
+- **Editor textarea height**: `.fragment-editor` and `.editor-container` now use flex column + height chain
+- **Dev data directory path**: `getDataDir()` walks cwd for `electrobun.config.ts`, falls back to `userData`
+- **Agent engine config path mismatch**: unified to use `getDataDir()` instead of `path.resolve("data")`

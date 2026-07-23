@@ -12,6 +12,12 @@ for (const plugin of mainPlugins) {
   pluginManager.register(plugin);
 }
 
+// Set up sendMessage BEFORE loading plugins so ctx.sendMessage() works
+let rpcSend: (channel: string, payload: unknown) => void = (channel, payload) => {
+  console.warn("[NovelCraft] RPC not ready, dropping message:", channel);
+};
+pluginManager.setSendMessage((channel, payload) => rpcSend(channel, payload));
+
 await pluginManager.loadAll();
 
 let hasUnsavedChanges = false;
@@ -69,16 +75,26 @@ for (const name of mutatingOps) {
 
 const novelcraftRPC = BrowserView.defineRPC({
   maxRequestTime: 60000,
-  handlers: { requests },
+  handlers: {
+    requests,
+    messages: {
+      streamChunk: () => {},
+      streamDone: () => {},
+      streamError: () => {},
+      workshopStateChanged: () => {},
+    },
+  },
 });
 
-pluginManager.setSendMessage((channel: string, payload: unknown) => {
+// Wire rpcSend to use novelcraftRPC.send()
+rpcSend = (channel, payload) => {
   try {
+    console.log("[sendMessage]", channel);
     (novelcraftRPC as any).send(channel, payload);
   } catch (e) {
-    console.warn("[NovelCraft] Failed to send message to renderer:", e);
+    console.warn("[NovelCraft] Failed to send message:", channel, e);
   }
-});
+};
 
 const mainWindow = new BrowserWindow({
   title: "NovelCraft",
