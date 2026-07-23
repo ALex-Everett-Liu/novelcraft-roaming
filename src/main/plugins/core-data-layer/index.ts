@@ -53,6 +53,11 @@ const plugin: MainPlugin = {
       CREATE INDEX IF NOT EXISTS idx_chapters_project ON chapters(project_id)
     `);
 
+    ctx.runMigration(6, "recalc_cjk_word_counts", `
+      -- Placeholder migration; actual recalculation happens in onLoad
+      SELECT 1
+    `);
+
     // ─── Prepared Statements ─────────────────────
     const insertProject = db.prepare(`
       INSERT INTO projects (id, name, created_at, updated_at) VALUES ($id, $name, $createdAt, $updatedAt)
@@ -99,10 +104,38 @@ const plugin: MainPlugin = {
       return String(Date.now());
     }
 
+    const CJK_RE = /[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]/g;
+
     function countWords(text: string): number {
       const trimmed = text.trim();
       if (!trimmed) return 0;
-      return trimmed.split(/\s+/).length;
+
+      // Count each CJK character as one "word"
+      const cjkCount = (trimmed.match(CJK_RE) || []).length;
+
+      // Remove CJK blocks, then count remaining words by whitespace
+      const nonCjk = trimmed.replace(CJK_RE, " ");
+      const englishWords = nonCjk.trim().split(/\s+/).filter((w: string) => w.length > 0).length;
+
+      return cjkCount + englishWords;
+    }
+
+    // Recalculate word counts for existing content (one-time fix for CJK)
+    {
+      const allFragments = db.query("SELECT id, content FROM fragments").all() as { id: string; content: string }[];
+      if (allFragments.length > 0) {
+        const updateStmt = db.prepare("UPDATE fragments SET word_count = $wc WHERE id = $id");
+        for (const row of allFragments) {
+          updateStmt.run({ $wc: countWords(row.content), $id: row.id });
+        }
+      }
+      const allChapters = db.query("SELECT id, content FROM chapters").all() as { id: string; content: string }[];
+      if (allChapters.length > 0) {
+        const updateStmt = db.prepare("UPDATE chapters SET word_count = $wc WHERE id = $id");
+        for (const row of allChapters) {
+          updateStmt.run({ $wc: countWords(row.content), $id: row.id });
+        }
+      }
     }
 
     function mapFragment(row: Record<string, unknown>) {

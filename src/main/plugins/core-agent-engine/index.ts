@@ -5,6 +5,7 @@ import { streamLLM } from "../core-llm-client/index";
 import { PROMPTS } from "./prompts";
 import path from "path";
 import { existsSync, readFileSync } from "fs";
+import { getDataDir } from "../../database/connection";
 
 interface LLMConfig {
   baseUrl: string;
@@ -30,10 +31,8 @@ interface Fragment {
 type AgentMode = "polish" | "bridge" | "splice" | "expand" | "diverge" | "continue" | "complete" | "workshop";
 
 function getConfig(ctx: MainPluginContext): LLMConfig | null {
-  const db = ctx.getDatabase();
   try {
-    const dataDir = process.env.ELECTROBUN_APP_DATA || path.resolve("data");
-    const configPath = path.join(dataDir, "config.json");
+    const configPath = path.join(getDataDir(), "config.json");
     if (existsSync(configPath)) {
       const cfg = JSON.parse(readFileSync(configPath, "utf-8"));
       return {
