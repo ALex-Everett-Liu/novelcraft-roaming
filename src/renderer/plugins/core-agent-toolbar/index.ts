@@ -1,6 +1,5 @@
 import { render } from "preact";
 import { html } from "htm/preact";
-import { useEffect, useState } from "preact/hooks";
 import { store } from "../../state/store";
 import { api } from "../../rpc/api";
 import type { RendererPluginContext } from "../../plugin-system/RendererPluginContext";
@@ -28,14 +27,8 @@ const MODES: { mode: AgentMode; label: string; description: string }[] = [
 let container: HTMLDivElement | null = null;
 
 function AgentToolbar() {
-  const [, setTick] = useState(0);
   const activeMode = store.state.value.agentMode;
   const selectedCount = store.state.value.selectedFragmentIds.length;
-
-  useEffect(() => {
-    const interval = setInterval(() => setTick((t) => t + 1), 500);
-    return () => clearInterval(interval);
-  }, []);
 
   const handleModeClick = (mode: AgentMode) => {
     store.setAgentMode(activeMode === mode ? null : mode);

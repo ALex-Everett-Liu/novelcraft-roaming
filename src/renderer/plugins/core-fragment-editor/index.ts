@@ -16,18 +16,12 @@ const plugin = {
 let container: HTMLDivElement | null = null;
 
 function FragmentEditor() {
-  const [, setTick] = useState(0);
   const fragments = store.state.value.fragments;
   const focusedId = store.state.value.focusedFragmentId;
   const fragment = focusedId ? fragments.find((f) => f.id === focusedId) : null;
 
   const [title, setTitle] = useState(fragment?.title || "");
   const [content, setContent] = useState(fragment?.content || "");
-
-  useEffect(() => {
-    const interval = setInterval(() => setTick((t) => t + 1), 500);
-    return () => clearInterval(interval);
-  }, []);
 
   useEffect(() => {
     if (fragment) {

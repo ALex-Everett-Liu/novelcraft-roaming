@@ -3,39 +3,48 @@ import { html } from "htm/preact";
 import { Electroview } from "electrobun/view";
 import type { NovelCraftRPCType } from "../shared/rpc-schema";
 import { initApi } from "./rpc/api";
-import { initializeTheme } from "./theme/themeManager";
 import { App } from "./components/App";
+import { store } from "./state/store";
 import { loadAllRendererPluginsImmediately } from "./plugin-system/loadRendererPlugins";
+import { initializeTheme } from "./theme/themeManager";
+import "./styles/main.css";
 
+// Initialize theme before first paint
 initializeTheme();
 
+// Initialize Electrobun RPC - connects to main process
 const rpc = Electroview.defineRPC<NovelCraftRPCType>({
   maxRequestTime: 15000,
   handlers: {
     requests: {},
     messages: {
-      streamChunk: (payload) => {
-        window.dispatchEvent(new CustomEvent("stream:chunk", { detail: payload }));
+      streamChunk: ({ content }: { content: string }) => {
+        store.appendStreamChunk(content);
       },
-      streamDone: (payload) => {
-        window.dispatchEvent(new CustomEvent("stream:done", { detail: payload }));
+      streamDone: () => {
+        store.markStreamComplete();
       },
-      streamError: (payload) => {
-        window.dispatchEvent(new CustomEvent("stream:error", { detail: payload }));
+      streamError: ({ message }: { message: string }) => {
+        store.appendStreamChunk(`\n\n[Error: ${message}]`);
+        store.markStreamComplete();
       },
-      workshopStateChanged: (payload) => {
-        window.dispatchEvent(new CustomEvent("workshop:state", { detail: payload }));
+      workshopStateChanged: (state: any) => {
+        store.setWorkshopState(state);
       },
     },
   },
 });
 
 const electroview = new Electroview({ rpc });
-initApi(electroview.rpc!.request);
+initApi(electroview.rpc!.request as Parameters<typeof initApi>[0]);
 
+// Render app immediately (shows empty/loading state)
 render(html`<${App} />`, document.getElementById("app")!);
 
-// Load renderer plugins immediately — they're all essential for MVP
-loadAllRendererPluginsImmediately().catch((err) =>
-  console.error("[renderer plugins] Failed to load:", err)
-);
+// Defer data load and plugin load - give WebSocket time to connect to main process
+setTimeout(async () => {
+  await store.initialLoad();
+  await loadAllRendererPluginsImmediately().catch((err) =>
+    console.error("[renderer plugins] Failed to load:", err)
+  );
+}, 300);

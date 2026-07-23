@@ -18,6 +18,17 @@ All notable changes to the NovelCraft Roaming project.
 - **core-output-panel** renderer plugin: streaming output display with Accept/Reject buttons; Diverge mode JSON parsing + batch fragment creation; streamComplete state tracking
 - **core-settings-ui** renderer plugin: Settings dialog (LLM config + theme picker) with Ctrl+, shortcut
 - **Main→Renderer message bridge**: plugin sendMessage API via BrowserView RPC transport for SSE streaming chunks
+
+### Fixed
+
+- **Renderer plugins loaded before DOM ready**: moved plugin loading after `store.initialLoad()` in the 300ms deferred `setTimeout`, following the proven mindscape-roaming pattern instead of attempting Preact hooks lifecycle
+- **Missing Electroview RPC bridge in renderer**: `Electroview.defineRPC()` + `initApi()` added to `renderer/index.ts` (was entirely absent, causing "API not initialized" errors)
+- **Removed redundant setInterval polling**: 3 renderer plugins (fragment-panel, fragment-editor, agent-toolbar) had `setInterval(500ms)` re-renders despite already subscribing to `store.state.subscribe()`
+- **Settings modal**: added tabbed UI (LLM / Theme / Plugins) with plugin enable/disable status display
+
+### Changed
+
+- **Settings UI**: reorganized into tabs (LLM / Theme / Plugins) with a dedicated Plugins panel showing all registered plugin names, descriptions, essential badge, and ON/OFF status
 - **Toolbar**: Signals-based subscription (no polling), Settings button, Ctrl+S save shortcut
 - **Four-column layout**: Fragments (240px) | Editor (flex) | Agent Toolbar + Output (360px)
 - **Save/Discard mechanism**: backup-based with `ensureBackup()`/`commitSave()`/`restoreFromBackup()`

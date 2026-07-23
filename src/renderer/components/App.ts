@@ -191,7 +191,9 @@ export function App() {
   const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
-    store.initialLoad().then(() => setLoading(false));
+    return store.state.subscribe(() => {
+      setLoading(store.state.value.loading);
+    });
   }, []);
 
   useEffect(() => {

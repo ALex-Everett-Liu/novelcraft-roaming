@@ -1,6 +1,5 @@
 import { render } from "preact";
 import { html } from "htm/preact";
-import { useEffect, useState } from "preact/hooks";
 import { store } from "../../state/store";
 import type { RendererPluginContext } from "../../plugin-system/RendererPluginContext";
 import { manifest } from "./manifest";
@@ -15,14 +14,8 @@ const plugin = {
 let container: HTMLDivElement | null = null;
 
 function FragmentPanel() {
-  const [, setTick] = useState(0);
   const fragments = store.state.value.fragments;
   const selectedIds = store.state.value.selectedFragmentIds;
-
-  useEffect(() => {
-    const interval = setInterval(() => setTick((t) => t + 1), 500);
-    return () => clearInterval(interval);
-  }, []);
 
   const typeLabels: Record<string, string> = {
     scene: "S", dialogue: "D", plot: "P", lore: "L", synopsis: "Y", note: "N",
