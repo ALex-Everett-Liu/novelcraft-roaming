@@ -1037,6 +1037,35 @@ body {
   margin-bottom: 6px;
 }
 
+.extraction-character-row {
+  margin-bottom: 4px;
+}
+
+.extract-char-input {
+  width: 100%;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.68rem;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.extract-char-input::placeholder {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.extract-char-input:focus {
+  border-color: var(--accent);
+}
+
+.extract-char-input:disabled {
+  opacity: 0.4;
+}
+
 .extraction-buttons {
   display: flex;
   gap: 4px;
@@ -1315,6 +1344,24 @@ body {
 .profile-snapshot-btn:hover {
   border-color: var(--text-muted);
   color: var(--text);
+}
+
+.profile-char-select {
+  flex: 0 0 auto;
+  max-width: 120px;
+  padding: 3px 4px;
+  margin: 2px 0;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.68rem;
+  cursor: pointer;
+  outline: none;
+}
+
+.profile-char-select:focus {
+  border-color: var(--accent);
 }
 
 .profile-content {

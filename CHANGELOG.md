@@ -6,16 +6,23 @@ All notable changes to the NovelCraft Roaming project.
 
 ### Added
 
-- **Extraction diff viewer**: after each extraction completes, a field-level diff is shown (added/changed/removed, with before/after values), so users can verify the LLM actually performed incremental updates. Diff data is computed on the main process and sent via `extractionDone` message. A "View Full Profile" button navigates to the foldable profile viewer.
-- **Version snapshots**: each extraction now saves a timestamped JSON snapshot to `<dataDir>/extraction-history/` with an index file for easy external comparison.
-- **Inline profile editing**: `ProfileViewer` now supports click-to-edit on any field. String fields open as textareas; object fields open as JSON textareas. Ctrl+Enter to save, Esc to cancel. An edit bar with "Save Changes" / "Revert" appears when edits are pending. Changes are persisted to the database via new `protagonistProfileSave` and `worldOntologySave` RPC handlers.
-
 ### Fixed
 
-- **Extraction button scope undiscoverable**: the "Extract Profile" / "Update Profile" label and tooltip always said "from all fragments" even when fragments were pre-selected. Now shows count and scope inline: "Update Profile (3)" with tooltip "from 3 selected fragments". Fragment pre-selection (click in tree sidebar before clicking the button) already scoped extraction — this just makes it visible.
-- **Incremental extraction not injecting existing profile**: `doExtraction()` read `existingProfile` from the database but never injected it into the LLM prompt. Added `{{existingProfile}}` / `{{existingOntology}}` placeholders to prompts and wired the replacement. Subsequent extractions now see the prior profile and incrementally update it rather than overwriting from scratch.
+### Changed
+
+## [0.1.3] - 2026-07-23
+
+### Added
+
+- **Extraction diff viewer**: after each extraction completes, a field-level diff is shown (added/changed/removed, with before/after values), so users can verify the LLM actually performed incremental updates. Diff data is computed on the main process and sent via `extractionDone` message. A "View Full Profile" button navigates to the foldable profile viewer.
+- **Version snapshots**: each extraction now saves a timestamped JSON snapshot to `<dataDir>/extraction-history/` with an index file. A **"Snapshot" button** in the profile viewer tab bar lets users manually create snapshots after editing.
+- **Inline profile editing**: `ProfileViewer` now supports click-to-edit on any field. String fields open as textareas; object fields open as JSON textareas. Ctrl+Enter to save, Esc to cancel. An edit bar with "Save Changes" / "Revert" appears when edits are pending. Changes are persisted to the database via new `protagonistProfileSave` and `worldOntologySave` RPC handlers.
+- **Multi-character extraction**: `protagonist_profile` now stored as a JSON map keyed by character name instead of a single flat profile. A **"Character" input field** next to the extraction button lets users specify which character to target (e.g. type "林黛玉" to extract her profile). The profile viewer has a **character selector dropdown** when multiple characters exist. Backward-compatible: old single-profile data is auto-converted to a one-entry map on load.
 
 ### Changed
+
+- **Profile data format**: `protagonist_profile` DB column changed from flat profile object to `Record<string, ProtagonistProfile>` map. Old data auto-migrated on read via `normalizeProfileMap()`.
+- **Agent prompt injection**: `agentRun` RPC now accepts optional `characterName` parameter; profile injection picks the active character from the map (falls back to first character).
 
 ## [0.1.2] - 2026-07-23
 

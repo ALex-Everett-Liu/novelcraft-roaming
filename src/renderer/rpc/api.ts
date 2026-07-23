@@ -62,7 +62,7 @@ export const api = {
     req<RpcResult<void>>("configSave", { config }),
 
   // Agent
-  agentRun: (params: { mode: string; fragmentIds: string[]; contextFragmentIds?: string[] }) =>
+  agentRun: (params: { mode: string; fragmentIds: string[]; contextFragmentIds?: string[]; characterName?: string }) =>
     req<RpcResult<void>>("agentRun", params),
   agentCancel: () =>
     req<RpcResult<void>>("agentCancel", {}),
@@ -105,7 +105,7 @@ export const api = {
     req<RpcResult<any[]>>("getLlmLogs", {}),
 
   // Context Extraction
-  protagonistExtract: (params: { projectId: string; fragmentIds?: string[] }) =>
+  protagonistExtract: (params: { projectId: string; fragmentIds?: string[]; characterName?: string }) =>
     req<RpcResult<void>>("protagonistExtract", params),
   worldOntologyExtract: (params: { projectId: string; fragmentIds?: string[] }) =>
     req<RpcResult<void>>("worldOntologyExtract", params),

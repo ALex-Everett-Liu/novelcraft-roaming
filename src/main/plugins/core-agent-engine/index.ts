@@ -68,7 +68,7 @@ function loadFragments(ctx: MainPluginContext, ids: string[]): Fragment[] {
   }));
 }
 
-function loadProfiles(ctx: MainPluginContext, projectId: string): {
+function loadProfiles(ctx: MainPluginContext, projectId: string, characterName?: string): {
   protagonistProfile: string;
   worldOntology: string;
 } {
@@ -79,9 +79,28 @@ function loadProfiles(ctx: MainPluginContext, projectId: string): {
 
   if (row?.protagonist_profile) {
     try {
-      const p = JSON.parse(row.protagonist_profile);
-      const dims = Object.keys(p).filter(k => !["extractedAt", "sourceChapterRange"].includes(k));
-      protagonistProfile = dims.map(d => `${d}: ${JSON.stringify(p[d], null, 2)}`).join("\n\n");
+      const raw = JSON.parse(row.protagonist_profile);
+      // Pick targeted character from map, or first character, or old format
+      let p: any = null;
+      if (typeof raw === "object" && raw !== null && !Array.isArray(raw)) {
+        const keys = Object.keys(raw);
+        if (keys.length > 0) {
+          const dimKeys = new Set(["basicAnchors", "personalitySystem", "motivationSystem"]);
+          if (dimKeys.has(keys[0])) {
+            // Old format: single profile
+            p = raw;
+          } else {
+            // New map format
+            p = characterName && raw[characterName] ? raw[characterName] : raw[keys[0]];
+          }
+        }
+      }
+      if (p) {
+        const dims = Object.keys(p).filter(k => !["extractedAt", "sourceChapterRange"].includes(k));
+        protagonistProfile = dims.map(d => `${d}: ${JSON.stringify(p[d], null, 2)}`).join("\n\n");
+      } else {
+        protagonistProfile = "（尚未提取主角档案，建议在 Workshop 模式前先提取以获得更准确的角色一致性分析）";
+      }
     } catch {
       protagonistProfile = "（尚未提取主角档案，建议在 Workshop 模式前先提取以获得更准确的角色一致性分析）";
     }
@@ -114,6 +133,7 @@ const plugin: MainPlugin = {
       mode: AgentMode;
       fragmentIds: string[];
       contextFragmentIds?: string[];
+      characterName?: string;
     }) => {
       const config = getConfig(ctx);
       if (!config || !config.apiKey) {
@@ -126,7 +146,7 @@ const plugin: MainPlugin = {
       }
 
       const projectId = fragments[0].projectId;
-      const profiles = loadProfiles(ctx, projectId);
+      const profiles = loadProfiles(ctx, projectId, params.characterName);
 
       const injectProfiles = (prompt: string) =>
         prompt.replace("{{protagonist_profile}}", profiles.protagonistProfile)

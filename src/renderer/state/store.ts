@@ -11,6 +11,7 @@ export interface ExtractionState {
   error: string;
   batch: number;
   totalBatches: number;
+  characterName?: string;
   diff?: any | null;
   previousProfile?: any | null;
   snapshotPath?: string | null;
@@ -27,8 +28,9 @@ export interface AppState {
   streamComplete: boolean;
   workshopState: WorkshopState | null;
   extraction: ExtractionState | null;
-  protagonistProfile: ProtagonistProfile | null;
+  protagonistProfile: Record<string, ProtagonistProfile> | null;
   worldOntology: WorldOntology | null;
+  activeCharacter: string | null;
   llmConfig: LLMConfig | null;
   loading: boolean;
   unsavedCount: number;
@@ -48,6 +50,7 @@ function createDefaultState(): AppState {
     extraction: null,
     protagonistProfile: null,
     worldOntology: null,
+    activeCharacter: null,
     llmConfig: null,
     loading: true,
     unsavedCount: 0,
@@ -122,6 +125,7 @@ class Store {
       extraction: null,
       protagonistProfile: null,
       worldOntology: null,
+      activeCharacter: null,
     });
     await this.loadFragments();
     await this.loadChapters();
@@ -218,13 +222,17 @@ class Store {
     this.update({ workshopState: state });
   }
 
+  setActiveCharacter(name: string): void {
+    this.update({ activeCharacter: name });
+  }
+
   // ===== Extraction =====
-  async startExtraction(type: string, projectId: string, fragmentIds?: string[]): Promise<void> {
+  async startExtraction(type: string, projectId: string, fragmentIds?: string[], characterName?: string): Promise<void> {
     this.update({
-      extraction: { type, streamText: "", complete: false, result: null, statusMessage: "", error: "", batch: 0, totalBatches: 0 },
+      extraction: { type, streamText: "", complete: false, result: null, statusMessage: "", error: "", batch: 0, totalBatches: 0, characterName },
     });
     if (type === "protagonist") {
-      await api.protagonistExtract({ projectId, fragmentIds });
+      await api.protagonistExtract({ projectId, fragmentIds, characterName });
     } else if (type === "worldview") {
       await api.worldOntologyExtract({ projectId, fragmentIds });
     } else if (type === "bridge") {
@@ -244,14 +252,20 @@ class Store {
     this.update({ extraction: { ...e, batch, totalBatches } });
   }
 
-  completeExtraction(type: string, result: any, statusMessage: string, diff?: any, previousProfile?: any, snapshotPath?: string): void {
+  completeExtraction(type: string, result: any, statusMessage: string, diff?: any, previousProfile?: any, snapshotPath?: string, characterName?: string): void {
     const e = this.state.value.extraction;
     if (!e || e.type !== type) return;
-    this.update({
+    const updates: any = {
       extraction: { ...e, complete: true, result, statusMessage, diff, previousProfile, snapshotPath },
-      ...(type === "protagonist" ? { protagonistProfile: result } : {}),
-      ...(type === "worldview" ? { worldOntology: result } : {}),
-    });
+    };
+    if (type === "protagonist" && typeof result === "object" && result !== null) {
+      updates.protagonistProfile = result;
+      if (characterName) updates.activeCharacter = characterName;
+    }
+    if (type === "worldview") {
+      updates.worldOntology = result;
+    }
+    this.update(updates);
     this.markModified();
   }
 
@@ -266,12 +280,14 @@ class Store {
     this.update({ extraction: null });
   }
 
-  async saveProtagonistProfile(profile: any): Promise<boolean> {
+  async saveProtagonistProfile(name: string, profile: any): Promise<boolean> {
     const project = this.state.value.project;
     if (!project) return false;
-    const res = await api.protagonistProfileSave({ projectId: project.id, profile });
+    const map = { ...(this.state.value.protagonistProfile || {}) };
+    map[name] = profile;
+    const res = await api.protagonistProfileSave({ projectId: project.id, profile: map });
     if (res.success) {
-      this.update({ protagonistProfile: profile });
+      this.update({ protagonistProfile: map, activeCharacter: name });
       this.markModified();
       return true;
     }
@@ -295,7 +311,11 @@ class Store {
     if (!project) return;
     const pRes = await api.protagonistGet(project.id);
     if (pRes.success && pRes.data) {
-      this.update({ protagonistProfile: pRes.data });
+      const map = pRes.data;
+      this.update({
+        protagonistProfile: map,
+        activeCharacter: this.state.value.activeCharacter || Object.keys(map)[0] || null,
+      });
     }
     const wRes = await api.worldOntologyGet(project.id);
     if (wRes.success && wRes.data) {

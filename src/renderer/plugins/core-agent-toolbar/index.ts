@@ -35,6 +35,9 @@ function AgentToolbar() {
   const protagonistProfile = store.state.value.protagonistProfile;
   const worldOntology = store.state.value.worldOntology;
   const project = store.state.value.project;
+  const activeCharacter = store.state.value.activeCharacter;
+
+  const [characterInput, setCharacterInput] = useState("");
 
   useEffect(() => {
     return store.state.subscribe(() => forceUpdate((n) => n + 1));
@@ -71,7 +74,7 @@ function AgentToolbar() {
     if (mode === "workshop") {
       await api.workshopStart(fragmentIds[0], segmentText ? { segmentText } : undefined);
     } else {
-      await api.agentRun({ mode, fragmentIds });
+      await api.agentRun({ mode, fragmentIds, characterName: activeCharacter || undefined });
     }
   };
 
@@ -81,7 +84,8 @@ function AgentToolbar() {
     if (!project) return;
     const selectedIds = store.state.value.selectedFragmentIds.length > 0
       ? store.state.value.selectedFragmentIds : undefined;
-    store.startExtraction(type, project.id, selectedIds);
+    const name = characterInput.trim() || undefined;
+    store.startExtraction(type, project.id, selectedIds, name);
   };
 
   const handleCancelExtraction = () => {
@@ -92,7 +96,12 @@ function AgentToolbar() {
 
   const extractScoped = selectedCount > 0;
   const extractScopeLabel = extractScoped ? ` from ${selectedCount} selected fragment${selectedCount > 1 ? "s" : ""}` : " from ALL fragments";
-  const extractProtagonistLabel = (protagonistProfile ? "Update Profile" : "Extract Profile") + (extractScoped ? ` (${selectedCount})` : "");
+
+  const displayCharName = characterInput.trim() || activeCharacter || "";
+  const hasProfile = protagonistProfile && Object.keys(protagonistProfile).length > 0;
+  const charLabel = displayCharName ? ` ${displayCharName}` : "";
+  const extractProtagonistLabel = (hasProfile && (!displayCharName || protagonistProfile?.[displayCharName])
+    ? "Update" : "Extract") + charLabel + (extractScoped ? ` (${selectedCount})` : "");
   const extractWorldviewLabel = (worldOntology ? "Update Worldview" : "Extract Worldview") + (extractScoped ? ` (${selectedCount})` : "");
 
   return html`
@@ -113,6 +122,17 @@ function AgentToolbar() {
 
       <div class="extraction-section">
         <div class="extraction-section-label">Context Extraction</div>
+        <div class="extraction-character-row">
+          <input
+            class="extract-char-input"
+            type="text"
+            placeholder=${activeCharacter || "Character name..."}
+            value=${characterInput}
+            onInput=${(e: any) => setCharacterInput(e.target.value)}
+            disabled=${isExtracting}
+            title="Target character for profile extraction"
+          />
+        </div>
         <div class="extraction-buttons">
           <button
             class="extract-btn"
@@ -155,7 +175,7 @@ function AgentToolbar() {
         return html`
         <div class="agent-run-bar">
           <span class="agent-run-info">${activeMode} — ${effectiveCount} fragment${effectiveCount !== 1 ? "s" : ""}</span>
-          ${isWorkshop && !protagonistProfile && html`
+          ${isWorkshop && (!protagonistProfile || Object.keys(protagonistProfile).length === 0) && html`
             <span class="workshop-hint">Tip: Extract Profile first for better analysis</span>
           `}
           <button class="agent-run-btn" onClick=${handleRun} disabled=${!canRun}>Run</button>

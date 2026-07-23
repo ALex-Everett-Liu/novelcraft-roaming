@@ -459,24 +459,32 @@ function FoldableSection({ label, dim, data, onEdit }: {
 
 function ProfileViewer() {
   const [tab, setTab] = useState<"protagonist" | "ontology">("protagonist");
-  const protagonistProfile = store.state.value.protagonistProfile;
+  const protagonistMap = store.state.value.protagonistProfile;
   const worldOntology = store.state.value.worldOntology;
+  const activeCharacter = store.state.value.activeCharacter;
 
-  // Editable deep-cloned copy
+  const characterNames = protagonistMap ? Object.keys(protagonistMap) : [];
+  const selectedCharacter = activeCharacter && protagonistMap?.[activeCharacter]
+    ? activeCharacter
+    : characterNames[0] || null;
+
+  // Editable deep-cloned copy (per-character dimension data)
   const [editProfile, setEditProfile] = useState<any>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [saved, setSaved] = useState(false);
   const [snapshotSaved, setSnapshotSaved] = useState(false);
   const project = store.state.value.project;
 
-  const currentProfile = tab === "protagonist" ? protagonistProfile : worldOntology;
+  const currentProfile = tab === "protagonist" && selectedCharacter && protagonistMap
+    ? protagonistMap[selectedCharacter]
+    : tab === "ontology" ? worldOntology : null;
 
-  // Reset edit copy when tab or profile changes
+  // Reset edit copy when tab, character, or profile changes
   useEffect(() => {
     setEditProfile(currentProfile ? JSON.parse(JSON.stringify(currentProfile)) : null);
     setIsDirty(false);
     setSaved(false);
-  }, [tab, currentProfile]);
+  }, [tab, selectedCharacter, currentProfile]);
 
   const handleFieldEdit = (dim: string, field: string, value: any) => {
     if (!editProfile) return;
@@ -491,8 +499,8 @@ function ProfileViewer() {
   const handleSave = async () => {
     if (!editProfile) return;
     let ok = false;
-    if (tab === "protagonist") {
-      ok = await store.saveProtagonistProfile(editProfile);
+    if (tab === "protagonist" && selectedCharacter) {
+      ok = await store.saveProtagonistProfile(selectedCharacter, editProfile);
     } else {
       ok = await store.saveWorldOntology(editProfile);
     }
@@ -501,6 +509,10 @@ function ProfileViewer() {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     }
+  };
+
+  const handleCharacterSelect = (name: string) => {
+    store.setActiveCharacter(name);
   };
 
   const handleRevert = () => {
@@ -534,9 +546,9 @@ function ProfileViewer() {
         <button
           class=${`profile-tab ${tab === "protagonist" ? "profile-tab-active" : ""}`}
           onClick=${() => setTab("protagonist")}
-          disabled=${!protagonistProfile}
+          disabled=${!protagonistMap}
         >
-          Protagonist ${protagonistProfile ? "" : "(none)"}
+          Protagonist ${protagonistMap ? `(${characterNames.length})` : "(none)"}
         </button>
         <button
           class=${`profile-tab ${tab === "ontology" ? "profile-tab-active" : ""}`}
@@ -545,6 +557,17 @@ function ProfileViewer() {
         >
           Worldview ${worldOntology ? "" : "(none)"}
         </button>
+        ${tab === "protagonist" && characterNames.length > 1 && html`
+          <select
+            class="profile-char-select"
+            value=${selectedCharacter || ""}
+            onChange=${(e: any) => handleCharacterSelect(e.target.value)}
+          >
+            ${characterNames.map((name) => html`
+              <option value=${name} selected=${name === selectedCharacter}>${name}</option>
+            `)}
+          </select>
+        `}
         ${editProfile && html`
           <button
             class="profile-snapshot-btn"
@@ -598,6 +621,7 @@ function OutputPanel() {
   const extraction = store.state.value.extraction;
   const protagonistProfile = store.state.value.protagonistProfile;
   const worldOntology = store.state.value.worldOntology;
+  const hasProfile = protagonistProfile && Object.keys(protagonistProfile).length > 0;
 
   useEffect(() => {
     return store.state.subscribe(() => forceUpdate((n) => n + 1));
@@ -651,7 +675,7 @@ function OutputPanel() {
   }
 
   // ─── Profiles available (show foldable viewer) ─────
-  if (protagonistProfile || worldOntology) {
+  if (hasProfile || worldOntology) {
     return html`<${ProfileViewer} />`;
   }
 

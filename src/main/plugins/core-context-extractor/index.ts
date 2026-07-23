@@ -35,6 +35,41 @@ interface FragmentRow {
 
 type ExtractionType = "protagonist" | "worldview" | "bridge";
 
+const DIMENSION_KEYS = new Set([
+  "basicAnchors", "personalitySystem", "motivationSystem", "emotionDefense",
+  "behaviorFingerprint", "relationshipCoordinate", "growthArc", "oocRedlines",
+  "epistemicState", "narrativeVoice", "worldInteraction", "culturalScripts",
+  "selfContradictions", "embodiedExperience",
+]);
+
+const ONTOLOGY_KEYS = new Set([
+  "existentialTopology", "causalArchitecture", "spatioTemporalOntology",
+  "informationEpistemology", "axiologicalFoundation", "becomingDynamics",
+  "narrativeOntology",
+]);
+
+function isOldFormatProfile(data: any): boolean {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return false;
+  const keys = Object.keys(data);
+  return keys.length > 0 && DIMENSION_KEYS.has(keys[0]);
+}
+
+function normalizeProfileMap(raw: any): Record<string, any> | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  if (isOldFormatProfile(raw)) {
+    const name = raw.basicAnchors?.name || "Unknown";
+    return { [name]: raw };
+  }
+  // Already map format — exclude meta/non-profile entries
+  const map: Record<string, any> = {};
+  for (const [key, val] of Object.entries(raw)) {
+    if (val && typeof val === "object" && !Array.isArray(val)) {
+      map[key] = val;
+    }
+  }
+  return Object.keys(map).length > 0 ? map : null;
+}
+
 function getConfig(): LLMConfig | null {
   try {
     const configPath = path.join(getDataDir(), "config.json");
@@ -348,7 +383,8 @@ const plugin: MainPlugin = {
     ctx.registerRpcHandler("protagonistGet", (params: { projectId: string }) => {
       const row = db.query("SELECT protagonist_profile, name FROM projects WHERE id = ?").get(params.projectId) as any;
       if (!row) return { success: false, error: "Project not found" };
-      const data = row.protagonist_profile ? JSON.parse(row.protagonist_profile) : null;
+      const raw = row.protagonist_profile ? JSON.parse(row.protagonist_profile) : null;
+      const data = normalizeProfileMap(raw);
       return { success: true, data };
     }, { noPrefix: true });
 
@@ -383,7 +419,7 @@ const plugin: MainPlugin = {
 
     const doExtraction = async (
       type: ExtractionType,
-      params: { projectId: string; fragmentIds?: string[] },
+      params: { projectId: string; fragmentIds?: string[]; characterName?: string },
     ) => {
       const config = getConfig();
       if (!config || !config.apiKey) {
@@ -410,10 +446,18 @@ const plugin: MainPlugin = {
       const dbColumn = type === "protagonist" ? "protagonist_profile" : "world_ontology";
       const extractMaxTokens = PARSE_MAX_TOKENS;
 
-      // Read existing profile
+      // Read existing profile map
       const projectRow = db.query(`SELECT ${dbColumn}, novel_profile FROM projects WHERE id = ?`).get(params.projectId) as any;
-      const existingProfile = projectRow?.[dbColumn] ? JSON.parse(projectRow[dbColumn]) : null;
+      const rawProfile = projectRow?.[dbColumn] ? JSON.parse(projectRow[dbColumn]) : null;
+      const profileMap = type === "protagonist" ? normalizeProfileMap(rawProfile) : null;
       const novelProfile = projectRow?.novel_profile ? JSON.parse(projectRow.novel_profile) : {};
+
+      // Resolve the character name to target
+      const characterName = params.characterName || novelProfile.protagonist || "";
+      // Find this character's existing profile for incremental update
+      const existingProfile = type === "protagonist" && profileMap && characterName
+        ? (profileMap[characterName] || null)
+        : (type === "worldview" ? rawProfile : null);
 
       // Split into batches
       const inputLimit = Math.min(config.maxTokens, 64000);
@@ -441,7 +485,8 @@ const plugin: MainPlugin = {
         let prompt = promptTemplate
           .replace("{{title}}", novelProfile.title || "")
           .replace("{{author}}", novelProfile.author || "")
-          .replace("{{protagonist}}", novelProfile.protagonist || "")
+          .replace("{{protagonist}}", characterName || novelProfile.protagonist || "")
+          .replace("{{characterName}}", characterName || novelProfile.protagonist || "主角")
           .replace("{{synopsis}}", novelProfile.synopsis || "")
           .replace("{{worldSetting}}", novelProfile.worldSetting || "")
           .replace("{{writingStyle}}", novelProfile.writingStyle || "")
@@ -560,16 +605,24 @@ const plugin: MainPlugin = {
 
       // Save to DB
       const ts = String(Date.now());
+      let savedMap: Record<string, any> | null = null;
+      let savedName: string | undefined;
       if (type === "protagonist") {
-        db.run("UPDATE projects SET protagonist_profile = ?, updated_at = ? WHERE id = ?", [JSON.stringify(accumulated), ts, params.projectId]);
+        // Insert/extract the extracted character into the profile map
+        savedName = accumulated.basicAnchors?.name || characterName || "Unknown";
+        savedMap = normalizeProfileMap(rawProfile) || {};
+        savedMap[savedName] = accumulated;
+        db.run("UPDATE projects SET protagonist_profile = ?, updated_at = ? WHERE id = ?", [JSON.stringify(savedMap), ts, params.projectId]);
 
         // Auto-fill novelProfile from basicAnchors if missing
-        if (!novelProfile.title && !novelProfile.protagonist && accumulated.basicAnchors) {
+        if ((!novelProfile.title || !novelProfile.protagonist) && accumulated.basicAnchors) {
           const ba = accumulated.basicAnchors;
           const autoProfile: Record<string, string> = {};
-          if (ba.name) autoProfile.title = String(ba.name);
-          if (ba.name) autoProfile.protagonist = String(ba.name);
-          db.run("UPDATE projects SET novel_profile = ?, updated_at = ? WHERE id = ?", [JSON.stringify({ ...novelProfile, ...autoProfile }), String(Date.now()), params.projectId]);
+          if (ba.name && !novelProfile.title) autoProfile.title = String(ba.name);
+          if (ba.name && !novelProfile.protagonist) autoProfile.protagonist = String(ba.name);
+          if (Object.keys(autoProfile).length > 0) {
+            db.run("UPDATE projects SET novel_profile = ?, updated_at = ? WHERE id = ?", [JSON.stringify({ ...novelProfile, ...autoProfile }), String(Date.now()), params.projectId]);
+          }
         }
       } else {
         db.run("UPDATE projects SET world_ontology = ?, updated_at = ? WHERE id = ?", [JSON.stringify(accumulated), ts, params.projectId]);
@@ -580,7 +633,9 @@ const plugin: MainPlugin = {
 
       send("extractionDone", {
         type,
-        result: accumulated,
+        result: savedMap || accumulated,
+        profile: accumulated,
+        characterName: savedName,
         statusMessage: batchCount === 1 ? "提取完成（1 批次）" : `提取完成（${batchCount} 批次，已合并）`,
         diff,
         previousProfile: existingProfile,
@@ -664,6 +719,7 @@ const plugin: MainPlugin = {
     ctx.registerRpcHandler("protagonistExtract", async (params: {
       projectId: string;
       fragmentIds?: string[];
+      characterName?: string;
     }) => {
       doExtraction("protagonist", params);
       return { success: true };
