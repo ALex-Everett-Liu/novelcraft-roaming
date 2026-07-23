@@ -6,13 +6,23 @@ All notable changes to the NovelCraft Roaming project.
 
 ### Added
 
+- **Extraction diff viewer**: after each extraction completes, a field-level diff is shown (added/changed/removed, with before/after values), so users can verify the LLM actually performed incremental updates. Diff data is computed on the main process and sent via `extractionDone` message. A "View Full Profile" button navigates to the foldable profile viewer.
+- **Version snapshots**: each extraction now saves a timestamped JSON snapshot to `<dataDir>/extraction-history/` with an index file for easy external comparison.
+- **Inline profile editing**: `ProfileViewer` now supports click-to-edit on any field. String fields open as textareas; object fields open as JSON textareas. Ctrl+Enter to save, Esc to cancel. An edit bar with "Save Changes" / "Revert" appears when edits are pending. Changes are persisted to the database via new `protagonistProfileSave` and `worldOntologySave` RPC handlers.
+
 ### Fixed
+
+- **Extraction button scope undiscoverable**: the "Extract Profile" / "Update Profile" label and tooltip always said "from all fragments" even when fragments were pre-selected. Now shows count and scope inline: "Update Profile (3)" with tooltip "from 3 selected fragments". Fragment pre-selection (click in tree sidebar before clicking the button) already scoped extraction — this just makes it visible.
+- **Incremental extraction not injecting existing profile**: `doExtraction()` read `existingProfile` from the database but never injected it into the LLM prompt. Added `{{existingProfile}}` / `{{existingOntology}}` placeholders to prompts and wired the replacement. Subsequent extractions now see the prior profile and incrementally update it rather than overwriting from scratch.
 
 ### Changed
 
 ## [0.1.2] - 2026-07-23
 
 ### Added
+
+- **Extraction diff viewer**: after each extraction completes, a field-level diff is shown (added/changed/removed, with before/after values), so users can verify the LLM actually performed incremental updates. Diff data is computed on the main process and sent via `extractionDone` message. A "View Full Profile" button navigates to the foldable profile viewer.
+- **Version snapshots**: each extraction now saves a timestamped JSON snapshot to `<dataDir>/extraction-history/` with an index file for easy external comparison.
 
 - **Docs**: `docs/extraction-lessons-learned.md` — 9 lessons from extraction feature implementation (PluginManager operator precedence, buildRpcHandlers hardcoding, chicken-and-egg migration, void RPC logging crash, completion→viewer transition, save/discard integration, fire-and-forget pattern, multi-column update isolation, JSON column parsing)
 
@@ -47,6 +57,9 @@ All notable changes to the NovelCraft Roaming project.
 
 ### Fixed
 
+- **Extraction button scope undiscoverable**: the "Extract Profile" / "Update Profile" label and tooltip always said "from all fragments" even when fragments were pre-selected. Now shows count and scope inline: "Update Profile (3)" with tooltip "from 3 selected fragments". Fragment pre-selection (click in tree sidebar before clicking the button) already scoped extraction — this just makes it visible.
+- **Incremental extraction not injecting existing profile**: `doExtraction()` read `existingProfile` from the database but never injected it into the LLM prompt. Added `{{existingProfile}}` / `{{existingOntology}}` placeholders to prompts and wired the replacement. Subsequent extractions now see the prior profile and incrementally update it rather than overwriting from scratch.
+
 - **PluginManager operator precedence**: `manifest.essential ?? manifest.enabledByDefault !== false ? 1 : 0` evaluated as `(false ?? true) ? 1 : 0` = `0`, disabling non-essential plugins on first registration. Fixed to use `||` instead of `??`.
 - **`buildRpcHandlers()` missing new RPC entries**: `protagonistExtract`, `worldOntologyExtract`, `bridgeExtract`, `extractionCancel`, `protagonistGet`, `worldOntologyGet`, `novelProfileSave` handlers were registered in the registry but never wired in the hardcoded handler mapping
 - **`reportUnsavedState` crash**: `JSON.stringify(undefined)` returned `undefined` (not a string), `.slice()` threw on void RPC responses; fixed with null guard
@@ -61,6 +74,9 @@ All notable changes to the NovelCraft Roaming project.
 ## [0.1.1] - 2026-07-23
 
 ### Added
+
+- **Extraction diff viewer**: after each extraction completes, a field-level diff is shown (added/changed/removed, with before/after values), so users can verify the LLM actually performed incremental updates. Diff data is computed on the main process and sent via `extractionDone` message. A "View Full Profile" button navigates to the foldable profile viewer.
+- **Version snapshots**: each extraction now saves a timestamped JSON snapshot to `<dataDir>/extraction-history/` with an index file for easy external comparison.
 
 - **Workshop mode (multi-turn)**: copilot-style chat with phases — LLM generates critique questions → user answers → discussion → revise → accept/reject
   - `workshopStart` RPC: sends selected editor text to LLM, returns 3–5 probing questions with quoted sections
@@ -81,6 +97,9 @@ All notable changes to the NovelCraft Roaming project.
 - **Dev data directory**: `getDataDir()` walks up for `electrobun.config.ts` to find project root, uses `<root>/data/` in dev mode
 
 ### Fixed
+
+- **Extraction button scope undiscoverable**: the "Extract Profile" / "Update Profile" label and tooltip always said "from all fragments" even when fragments were pre-selected. Now shows count and scope inline: "Update Profile (3)" with tooltip "from 3 selected fragments". Fragment pre-selection (click in tree sidebar before clicking the button) already scoped extraction — this just makes it visible.
+- **Incremental extraction not injecting existing profile**: `doExtraction()` read `existingProfile` from the database but never injected it into the LLM prompt. Added `{{existingProfile}}` / `{{existingOntology}}` placeholders to prompts and wired the replacement. Subsequent extractions now see the prior profile and incrementally update it rather than overwriting from scratch.
 
 - **Main→Renderer messages never delivered**: `sendMessage` was registered after `pluginManager.loadAll()`, causing plugins to capture a no-op function. Fixed by setting `sendMessage` before `loadAll` via mutable `rpcSend` reference, plus defining message handler stubs in `BrowserView.defineRPC`.
 
@@ -108,6 +127,9 @@ All notable changes to the NovelCraft Roaming project.
 
 ### Added
 
+- **Extraction diff viewer**: after each extraction completes, a field-level diff is shown (added/changed/removed, with before/after values), so users can verify the LLM actually performed incremental updates. Diff data is computed on the main process and sent via `extractionDone` message. A "View Full Profile" button navigates to the foldable profile viewer.
+- **Version snapshots**: each extraction now saves a timestamped JSON snapshot to `<dataDir>/extraction-history/` with an index file for easy external comparison.
+
 - **Project skeleton**: Electrobun + Bun + Preact + htm + SQLite project
 - **Plugin system**: full plugin infrastructure (PluginManager, EventBus, DependencyResolver, RpcHandlerRegistry) — 4 main plugins + 4 renderer plugins
 - **core-data-layer** plugin: Fragment/Chapter/Project CRUD with SQLite storage, 5 migrations, TEXT import
@@ -133,6 +155,9 @@ All notable changes to the NovelCraft Roaming project.
 - **Plugin loading**: deferred 300ms via `setTimeout` (matching mindscape-roaming pattern) to allow WebSocket connection
 
 ### Fixed
+
+- **Extraction button scope undiscoverable**: the "Extract Profile" / "Update Profile" label and tooltip always said "from all fragments" even when fragments were pre-selected. Now shows count and scope inline: "Update Profile (3)" with tooltip "from 3 selected fragments". Fragment pre-selection (click in tree sidebar before clicking the button) already scoped extraction — this just makes it visible.
+- **Incremental extraction not injecting existing profile**: `doExtraction()` read `existingProfile` from the database but never injected it into the LLM prompt. Added `{{existingProfile}}` / `{{existingOntology}}` placeholders to prompts and wired the replacement. Subsequent extractions now see the prior profile and incrementally update it rather than overwriting from scratch.
 
 - **Missing Electroview RPC bridge**: added `Electroview.defineRPC()` + `initApi()` (was entirely absent, causing "API not initialized")
 - **Renderer plugins loaded before DOM ready**: moved to `setTimeout` after `initialLoad`

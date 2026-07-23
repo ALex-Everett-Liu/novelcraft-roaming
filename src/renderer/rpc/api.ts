@@ -119,4 +119,8 @@ export const api = {
     req<RpcResult<WorldOntology | null>>("worldOntologyGet", { projectId }),
   novelProfileSave: (params: { projectId: string; novelProfile: NovelProfile }) =>
     req<RpcResult<void>>("novelProfileSave", params),
+  protagonistProfileSave: (params: { projectId: string; profile: ProtagonistProfile }) =>
+    req<RpcResult<void>>("protagonistProfileSave", params),
+  worldOntologySave: (params: { projectId: string; profile: WorldOntology }) =>
+    req<RpcResult<void>>("worldOntologySave", params),
 };

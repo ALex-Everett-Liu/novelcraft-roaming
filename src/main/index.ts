@@ -37,7 +37,7 @@ const mutatingOps = [
   "agentRun",
   "workshopStart", "workshopAnswer", "workshopRevise", "workshopAccept",
   "protagonistExtract", "worldOntologyExtract", "bridgeExtract",
-  "novelProfileSave",
+  "novelProfileSave", "protagonistProfileSave", "worldOntologySave",
 ];
 
 const wrapMutating = (name: string, fn: (params: unknown) => Promise<unknown>) => {

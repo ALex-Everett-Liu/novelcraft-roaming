@@ -341,7 +341,86 @@ const DIMENSION_LABELS: Record<string, string> = {
   narrativeOntology: "叙事本体论",
 };
 
-function FoldableSection({ label, data }: { label: string; data: any }) {
+function EditableField({ dim, field, value, onEdit }: {
+  dim: string;
+  field: string;
+  value: any;
+  onEdit: (dim: string, field: string, value: any) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [localValue, setLocalValue] = useState("");
+  const textarea = useRef<HTMLTextAreaElement>(null);
+
+  const isObject = typeof value === "object" && value !== null && !Array.isArray(value);
+
+  const displayValue = isObject
+    ? JSON.stringify(value, null, 2)
+    : String(value ?? "");
+
+  const startEdit = () => {
+    setLocalValue(displayValue);
+    setEditing(true);
+    // Focus after next render
+    setTimeout(() => textarea.current?.focus(), 0);
+  };
+
+  const commitEdit = () => {
+    setEditing(false);
+    if (localValue === displayValue) return;
+
+    let parsed: any;
+    if (isObject) {
+      try {
+        parsed = JSON.parse(localValue);
+      } catch {
+        return; // Invalid JSON, don't commit
+      }
+    } else {
+      parsed = localValue;
+    }
+    onEdit(dim, field, parsed);
+  };
+
+  const cancelEdit = () => {
+    setEditing(false);
+    setLocalValue("");
+  };
+
+  if (editing) {
+    return html`
+      <div class="profile-field profile-field-editing">
+        <span class="profile-field-key">${field}</span>
+        <textarea
+          ref=${textarea}
+          class="profile-field-textarea ${isObject ? "profile-field-textarea-json" : ""}"
+          rows=${isObject ? Math.min(localValue.split("\n").length + 2, 20) : 2}
+          value=${localValue}
+          onInput=${(e: any) => setLocalValue(e.target.value)}
+          onBlur=${commitEdit}
+          onKeyDown=${(e: any) => {
+            if (e.key === "Escape") cancelEdit();
+            if (e.key === "Enter" && e.ctrlKey) commitEdit();
+          }}
+        />
+        <div class="profile-field-edit-hint">Ctrl+Enter save | Esc cancel | Click outside to save</div>
+      </div>
+    `;
+  }
+
+  return html`
+    <div class="profile-field profile-field-view" onClick=${startEdit} title="Click to edit">
+      <span class="profile-field-key">${field}</span>
+      <span class="profile-field-value">${displayValue}</span>
+    </div>
+  `;
+}
+
+function FoldableSection({ label, dim, data, onEdit }: {
+  label: string;
+  dim: string;
+  data: any;
+  onEdit: (dim: string, field: string, value: any) => void;
+}) {
   const [open, setOpen] = useState(false);
 
   if (!data || typeof data !== "object" || (Object.keys(data).length === 0)) {
@@ -365,14 +444,12 @@ function FoldableSection({ label, data }: { label: string; data: any }) {
       ${open && html`
         <div class="profile-dim-body">
           ${keys.map((k) => html`
-            <div class="profile-field">
-              <span class="profile-field-key">${k}</span>
-              <span class="profile-field-value">
-                ${typeof data[k] === "object"
-                  ? JSON.stringify(data[k], null, 2)
-                  : String(data[k])}
-              </span>
-            </div>
+            <${EditableField}
+              dim=${dim}
+              field=${k}
+              value=${data[k]}
+              onEdit=${onEdit}
+            />
           `)}
         </div>
       `}
@@ -385,11 +462,55 @@ function ProfileViewer() {
   const protagonistProfile = store.state.value.protagonistProfile;
   const worldOntology = store.state.value.worldOntology;
 
-  const currentData = tab === "protagonist" ? protagonistProfile : worldOntology;
+  // Editable deep-cloned copy
+  const [editProfile, setEditProfile] = useState<any>(null);
+  const [isDirty, setIsDirty] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const currentProfile = tab === "protagonist" ? protagonistProfile : worldOntology;
+
+  // Reset edit copy when tab or profile changes
+  useEffect(() => {
+    setEditProfile(currentProfile ? JSON.parse(JSON.stringify(currentProfile)) : null);
+    setIsDirty(false);
+    setSaved(false);
+  }, [tab, currentProfile]);
+
+  const handleFieldEdit = (dim: string, field: string, value: any) => {
+    if (!editProfile) return;
+    const next = JSON.parse(JSON.stringify(editProfile));
+    if (!next[dim]) next[dim] = {};
+    next[dim][field] = value;
+    setEditProfile(next);
+    setIsDirty(true);
+    setSaved(false);
+  };
+
+  const handleSave = async () => {
+    if (!editProfile) return;
+    let ok = false;
+    if (tab === "protagonist") {
+      ok = await store.saveProtagonistProfile(editProfile);
+    } else {
+      ok = await store.saveWorldOntology(editProfile);
+    }
+    if (ok) {
+      setIsDirty(false);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    }
+  };
+
+  const handleRevert = () => {
+    setEditProfile(currentProfile ? JSON.parse(JSON.stringify(currentProfile)) : null);
+    setIsDirty(false);
+    setSaved(false);
+  };
+
   const metaKeys = ["extractedAt", "sourceChapterRange"];
 
-  const dimensions = currentData
-    ? Object.keys(currentData).filter((k) => !metaKeys.includes(k))
+  const dimensions = editProfile
+    ? Object.keys(editProfile).filter((k) => !metaKeys.includes(k))
     : [];
 
   return html`
@@ -410,12 +531,31 @@ function ProfileViewer() {
           Worldview ${worldOntology ? "" : "(none)"}
         </button>
       </div>
+
+      ${isDirty && html`
+        <div class="profile-edit-bar">
+          <button class="profile-edit-btn profile-edit-save" onClick=${handleSave}>
+            Save Changes
+          </button>
+          <button class="profile-edit-btn profile-edit-cancel" onClick=${handleRevert}>
+            Revert
+          </button>
+        </div>
+      `}
+      ${saved && html`
+        <div class="profile-edit-bar profile-edit-bar-saved">
+          Saved
+        </div>
+      `}
+
       <div class="profile-content">
-        ${currentData && dimensions.length > 0
+        ${editProfile && dimensions.length > 0
           ? dimensions.map((dim) => html`
               <${FoldableSection}
                 label=${`${DIMENSION_LABELS[dim] || dim} (${dim})`}
-                data=${currentData[dim]}
+                dim=${dim}
+                data=${editProfile[dim]}
+                onEdit=${handleFieldEdit}
               />
             `)
           : html`<div class="profile-empty">No data extracted yet. Click "Extract Profile" or "Extract Worldview" in the toolbar.</div>`

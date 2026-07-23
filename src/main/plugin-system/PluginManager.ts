@@ -184,6 +184,8 @@ export class PluginManager {
         protagonistGet: (p: any) => wrap("protagonistGet", r.get("protagonistGet"))(p),
         worldOntologyGet: (p: any) => wrap("worldOntologyGet", r.get("worldOntologyGet"))(p),
         novelProfileSave: (p: any) => wrap("novelProfileSave", r.get("novelProfileSave"))(p),
+        protagonistProfileSave: (p: any) => wrap("protagonistProfileSave", r.get("protagonistProfileSave"))(p),
+        worldOntologySave: (p: any) => wrap("worldOntologySave", r.get("worldOntologySave"))(p),
       },
     };
   }

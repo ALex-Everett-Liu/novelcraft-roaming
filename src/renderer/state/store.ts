@@ -266,6 +266,30 @@ class Store {
     this.update({ extraction: null });
   }
 
+  async saveProtagonistProfile(profile: any): Promise<boolean> {
+    const project = this.state.value.project;
+    if (!project) return false;
+    const res = await api.protagonistProfileSave({ projectId: project.id, profile });
+    if (res.success) {
+      this.update({ protagonistProfile: profile });
+      this.markModified();
+      return true;
+    }
+    return false;
+  }
+
+  async saveWorldOntology(profile: any): Promise<boolean> {
+    const project = this.state.value.project;
+    if (!project) return false;
+    const res = await api.worldOntologySave({ projectId: project.id, profile });
+    if (res.success) {
+      this.update({ worldOntology: profile });
+      this.markModified();
+      return true;
+    }
+    return false;
+  }
+
   async loadProfiles(): Promise<void> {
     const project = this.state.value.project;
     if (!project) return;

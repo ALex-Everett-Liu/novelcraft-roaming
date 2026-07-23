@@ -364,6 +364,16 @@ const plugin: MainPlugin = {
       return { success: true };
     }, { noPrefix: true });
 
+    ctx.registerRpcHandler("protagonistProfileSave", (params: { projectId: string; profile: any }) => {
+      saveProfile(params.projectId, "protagonist_profile", JSON.stringify(params.profile || {}));
+      return { success: true };
+    }, { noPrefix: true });
+
+    ctx.registerRpcHandler("worldOntologySave", (params: { projectId: string; profile: any }) => {
+      saveProfile(params.projectId, "world_ontology", JSON.stringify(params.profile || {}));
+      return { success: true };
+    }, { noPrefix: true });
+
     // ===== Extraction core =====
 
     const doExtraction = async (
