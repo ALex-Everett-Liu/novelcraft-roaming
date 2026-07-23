@@ -1,0 +1,15 @@
+export const Events = {
+  FRAGMENT_CREATED: "fragment:created",
+  FRAGMENT_UPDATED: "fragment:updated",
+  FRAGMENT_DELETED: "fragment:deleted",
+  CHAPTER_CREATED: "chapter:created",
+  PROJECT_LOADED: "project:loaded",
+  AGENT_STREAM_START: "agent:stream-start",
+  AGENT_STREAM_CHUNK: "agent:stream-chunk",
+  AGENT_STREAM_DONE: "agent:stream-done",
+  AGENT_STREAM_ERROR: "agent:stream-error",
+  WORKSHOP_STATE_CHANGED: "workshop:state-changed",
+  PLUGIN_LOADED: "plugin:loaded",
+  PLUGIN_UNLOADED: "plugin:unloaded",
+  APP_READY: "app:ready",
+} as const;

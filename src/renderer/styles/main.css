@@ -1,0 +1,459 @@
+:root {
+  --bg: #1a1a2e;
+  --bg-secondary: #16213e;
+  --text: #e0e0e0;
+  --text-muted: #888;
+  --accent: #4fc3f7;
+  --accent-hover: #81d4fa;
+  --border: #2a2a4a;
+  --focus-bg: rgba(79, 195, 247, 0.08);
+  --font-mono: "SF Mono", "Fira Code", monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+  --font-size: 14px;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: var(--font-size);
+  font-family: var(--font-sans);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+  height: 100vh;
+}
+
+#app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+}
+
+/* ─── Toolbar ─────────────────────────── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 40px;
+  padding: 0 12px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  -webkit-app-region: drag;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.toolbar-title h1 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  -webkit-app-region: no-drag;
+}
+
+.toolbar-unsaved {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.toolbar-btn {
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.toolbar-btn:hover {
+  background: var(--focus-bg);
+}
+
+.toolbar-btn-save {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.toolbar-btn-discard {
+  border-color: #e57373;
+  color: #e57373;
+}
+
+/* ─── Main Layout ─────────────────────── */
+.main-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.panel:last-child {
+  border-right: none;
+}
+
+.panel-left {
+  width: 240px;
+  min-width: 180px;
+  flex-shrink: 0;
+}
+
+.panel-center {
+  flex: 1;
+  min-width: 300px;
+}
+
+.panel-right {
+  width: 360px;
+  min-width: 280px;
+  flex-shrink: 0;
+}
+
+.panel-header {
+  padding: 8px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.panel-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  padding: 20px;
+  text-align: center;
+}
+
+.panel-right-toolbar {
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.panel-right-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+/* ─── Scrollbar ────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* ─── Fragment List ────────────────────── */
+.fragment-list {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.fragment-list-header {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.fragment-add-btn {
+  width: 100%;
+  padding: 6px;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.fragment-add-btn:hover {
+  background: var(--focus-bg);
+}
+
+.fragment-items {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.fragment-empty {
+  padding: 20px 12px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.fragment-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.fragment-item:hover {
+  background: var(--focus-bg);
+}
+
+.fragment-item-selected {
+  background: var(--focus-bg);
+  outline: 1px solid var(--accent);
+}
+
+.fragment-type-badge {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  background: var(--bg-secondary);
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.fragment-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.fragment-item-title {
+  font-size: 0.85rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fragment-item-preview {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.fragment-delete-btn {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  opacity: 0;
+}
+
+.fragment-item:hover .fragment-delete-btn {
+  opacity: 1;
+}
+
+.fragment-delete-btn:hover {
+  background: rgba(229, 115, 115, 0.2);
+  color: #e57373;
+}
+
+/* ─── Editor ────────────────────────────── */
+.editor-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.editor-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 12px;
+  gap: 8px;
+}
+
+.editor-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.editor-type {
+  font-weight: 600;
+}
+
+.editor-title {
+  padding: 8px 0;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font-size: 1.1rem;
+  font-family: var(--font-sans);
+  outline: none;
+}
+
+.editor-title:focus {
+  border-bottom-color: var(--accent);
+}
+
+.editor-content {
+  flex: 1;
+  padding: 8px 0;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.95rem;
+  font-family: var(--font-sans);
+  line-height: 1.7;
+  resize: none;
+  outline: none;
+}
+
+.editor-content::placeholder {
+  color: var(--text-muted);
+}
+
+/* ─── Agent Toolbar ─────────────────────── */
+.agent-modes {
+  padding: 8px;
+}
+
+.agent-modes-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+
+.agent-mode-btn {
+  padding: 5px 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.1s;
+}
+
+.agent-mode-btn:hover {
+  background: var(--focus-bg);
+  color: var(--text);
+}
+
+.agent-mode-active {
+  background: var(--focus-bg);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.agent-run-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding: 6px 4px 0;
+  border-top: 1px solid var(--border);
+}
+
+.agent-run-info {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.agent-run-btn {
+  padding: 4px 16px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--accent);
+  color: var(--bg);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.agent-run-btn:disabled {
+  background: transparent;
+  color: var(--text-muted);
+  border-color: var(--border);
+  cursor: not-allowed;
+}
+
+/* ─── Output Panel ──────────────────────── */
+.output-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.output-content {
+  font-size: 0.9rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
