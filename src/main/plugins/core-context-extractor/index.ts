@@ -374,6 +374,11 @@ const plugin: MainPlugin = {
       return { success: true };
     }, { noPrefix: true });
 
+    ctx.registerRpcHandler("profileSnapshotSave", (params: { projectId: string; type: string; profile: any }) => {
+      const path = saveVersionSnapshot(params.projectId, params.type as ExtractionType, params.profile);
+      return { success: true, snapshotPath: path };
+    }, { noPrefix: true });
+
     // ===== Extraction core =====
 
     const doExtraction = async (

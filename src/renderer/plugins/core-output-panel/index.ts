@@ -466,6 +466,8 @@ function ProfileViewer() {
   const [editProfile, setEditProfile] = useState<any>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [snapshotSaved, setSnapshotSaved] = useState(false);
+  const project = store.state.value.project;
 
   const currentProfile = tab === "protagonist" ? protagonistProfile : worldOntology;
 
@@ -507,6 +509,19 @@ function ProfileViewer() {
     setSaved(false);
   };
 
+  const handleSnapshot = async () => {
+    if (!editProfile || !project) return;
+    const res = await api.profileSnapshotSave({
+      projectId: project.id,
+      type: tab === "protagonist" ? "protagonist" : "worldview",
+      profile: editProfile,
+    });
+    if (res.success) {
+      setSnapshotSaved(true);
+      setTimeout(() => setSnapshotSaved(false), 2000);
+    }
+  };
+
   const metaKeys = ["extractedAt", "sourceChapterRange"];
 
   const dimensions = editProfile
@@ -530,6 +545,15 @@ function ProfileViewer() {
         >
           Worldview ${worldOntology ? "" : "(none)"}
         </button>
+        ${editProfile && html`
+          <button
+            class="profile-snapshot-btn"
+            onClick=${handleSnapshot}
+            title="Save a timestamped snapshot to extraction-history"
+          >
+            ${snapshotSaved ? "Snapshotted" : "Snapshot"}
+          </button>
+        `}
       </div>
 
       ${isDirty && html`

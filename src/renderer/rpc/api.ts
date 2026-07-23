@@ -123,4 +123,6 @@ export const api = {
     req<RpcResult<void>>("protagonistProfileSave", params),
   worldOntologySave: (params: { projectId: string; profile: WorldOntology }) =>
     req<RpcResult<void>>("worldOntologySave", params),
+  profileSnapshotSave: (params: { projectId: string; type: string; profile: any }) =>
+    req<RpcResult<{ snapshotPath: string | null }>>("profileSnapshotSave", params),
 };
