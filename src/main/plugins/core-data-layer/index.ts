@@ -165,6 +165,23 @@ const plugin: MainPlugin = {
       };
     }
 
+    function jsonOrNull(text: unknown): any | null {
+      if (typeof text !== "string" || !text.trim()) return null;
+      try { return JSON.parse(text); } catch { return null; }
+    }
+
+    function mapProjectRow(row: Record<string, unknown>) {
+      return {
+        id: row.id,
+        name: row.name,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        novelProfile: jsonOrNull(row.novel_profile),
+        protagonistProfile: jsonOrNull(row.protagonist_profile),
+        worldOntology: jsonOrNull(row.world_ontology),
+      };
+    }
+
     // ─── RPC Handlers ────────────────────────────
 
     ctx.registerRpcHandler("projectCreate", (params: { name: string }) => {
@@ -179,7 +196,7 @@ const plugin: MainPlugin = {
       const row = getProject.get({ $id: id }) as Record<string, unknown>;
       return {
         success: true,
-        data: { id: row.id, name: row.name, createdAt: row.created_at, updatedAt: row.updated_at },
+        data: mapProjectRow(row),
       };
     }, { noPrefix: true });
 
@@ -188,7 +205,7 @@ const plugin: MainPlugin = {
       if (!row) return { success: false, error: "Project not found" };
       return {
         success: true,
-        data: { id: row.id, name: row.name, createdAt: row.created_at, updatedAt: row.updated_at },
+        data: mapProjectRow(row),
       };
     }, { noPrefix: true });
 
@@ -196,7 +213,7 @@ const plugin: MainPlugin = {
       const rows = db.query("SELECT * FROM projects ORDER BY created_at ASC").all() as Record<string, unknown>[];
       return {
         success: true,
-        data: rows.map((r) => ({ id: r.id, name: r.name, createdAt: r.created_at, updatedAt: r.updated_at })),
+        data: rows.map(mapProjectRow),
       };
     }, { noPrefix: true });
 

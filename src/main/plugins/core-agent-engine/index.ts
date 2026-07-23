@@ -68,6 +68,42 @@ function loadFragments(ctx: MainPluginContext, ids: string[]): Fragment[] {
   }));
 }
 
+function loadProfiles(ctx: MainPluginContext, projectId: string): {
+  protagonistProfile: string;
+  worldOntology: string;
+} {
+  const db = ctx.getDatabase();
+  const row = db.query("SELECT protagonist_profile, world_ontology FROM projects WHERE id = ?").get(projectId) as any;
+  let protagonistProfile = "";
+  let worldOntology = "";
+
+  if (row?.protagonist_profile) {
+    try {
+      const p = JSON.parse(row.protagonist_profile);
+      const dims = Object.keys(p).filter(k => !["extractedAt", "sourceChapterRange"].includes(k));
+      protagonistProfile = dims.map(d => `${d}: ${JSON.stringify(p[d], null, 2)}`).join("\n\n");
+    } catch {
+      protagonistProfile = "（尚未提取主角档案，建议在 Workshop 模式前先提取以获得更准确的角色一致性分析）";
+    }
+  } else {
+    protagonistProfile = "（尚未提取主角档案，建议在 Workshop 模式前先提取以获得更准确的角色一致性分析）";
+  }
+
+  if (row?.world_ontology) {
+    try {
+      const w = JSON.parse(row.world_ontology);
+      const dims = Object.keys(w).filter(k => !["extractedAt", "sourceChapterRange"].includes(k));
+      worldOntology = dims.map(d => `${d}: ${JSON.stringify(w[d], null, 2)}`).join("\n\n");
+    } catch {
+      worldOntology = "（尚未提取世界观底层，建议先提取以获得更准确的世界一致性）";
+    }
+  } else {
+    worldOntology = "（尚未提取世界观底层，建议先提取以获得更准确的世界一致性）";
+  }
+
+  return { protagonistProfile, worldOntology };
+}
+
 const plugin: MainPlugin = {
   manifest,
 
@@ -89,18 +125,24 @@ const plugin: MainPlugin = {
         return { success: false, error: "No fragments selected" };
       }
 
+      const projectId = fragments[0].projectId;
+      const profiles = loadProfiles(ctx, projectId);
+
+      const injectProfiles = (prompt: string) =>
+        prompt.replace("{{protagonist_profile}}", profiles.protagonistProfile)
+             .replace("{{world_ontology}}", profiles.worldOntology);
+
       const controller = new AbortController();
       const requestId = params.fragmentIds.join(",");
       activeRequests.set(requestId, controller);
 
       const send = (channel: string, payload: any) => ctx.sendMessage(channel, payload);
 
-      // Build prompt based on mode
       let messages: { role: string; content: string }[];
 
       switch (params.mode) {
         case "polish": {
-          const prompt = PROMPTS.polish.replace("{{fragment}}", fragments[0].content);
+          const prompt = injectProfiles(PROMPTS.polish.replace("{{fragment}}", fragments[0].content));
           messages = [
             { role: "system", content: "You are a professional literary editor." },
             { role: "user", content: prompt },
@@ -114,6 +156,7 @@ const plugin: MainPlugin = {
           let prompt = PROMPTS.bridge;
           prompt = prompt.replace("{{fragmentA}}", fragments[0].content);
           prompt = prompt.replace("{{fragmentB}}", fragments[1].content);
+          prompt = injectProfiles(prompt);
           messages = [
             { role: "system", content: "You are a professional novelist." },
             { role: "user", content: prompt },
@@ -125,7 +168,8 @@ const plugin: MainPlugin = {
           fragments.forEach((f, i) => {
             fragmentText += `碎片 ${i + 1}：\n${f.content}\n\n`;
           });
-          const prompt = PROMPTS.splice.replace("{{fragmentList}}", fragmentText.trim());
+          let prompt = PROMPTS.splice.replace("{{fragmentList}}", fragmentText.trim());
+          prompt = injectProfiles(prompt);
           messages = [
             { role: "system", content: "You are a novel integration editor." },
             { role: "user", content: prompt },
@@ -133,7 +177,7 @@ const plugin: MainPlugin = {
           break;
         }
         case "expand": {
-          const prompt = PROMPTS.expand.replace("{{fragment}}", fragments[0].content);
+          const prompt = injectProfiles(PROMPTS.expand.replace("{{fragment}}", fragments[0].content));
           messages = [
             { role: "system", content: "You are a novelist." },
             { role: "user", content: prompt },
@@ -145,7 +189,8 @@ const plugin: MainPlugin = {
           fragments.forEach((f) => {
             fragmentText += f.content + "\n\n";
           });
-          const prompt = PROMPTS.diverge.replace("{{fragmentList}}", fragmentText.trim());
+          let prompt = PROMPTS.diverge.replace("{{fragmentList}}", fragmentText.trim());
+          prompt = injectProfiles(prompt);
           messages = [
             { role: "system", content: "You are a creative writing assistant. Return ONLY valid JSON." },
             { role: "user", content: prompt },
@@ -157,7 +202,8 @@ const plugin: MainPlugin = {
           fragments.forEach((f) => {
             fragmentText += f.content + "\n\n";
           });
-          const prompt = PROMPTS.continue.replace("{{fragmentList}}", fragmentText.trim());
+          let prompt = PROMPTS.continue.replace("{{fragmentList}}", fragmentText.trim());
+          prompt = injectProfiles(prompt);
           messages = [
             { role: "system", content: "You are a professional novelist." },
             { role: "user", content: prompt },
@@ -165,7 +211,8 @@ const plugin: MainPlugin = {
           break;
         }
         case "complete": {
-          const prompt = PROMPTS.complete.replace("{{synopsis}}", fragments[0].content);
+          let prompt = PROMPTS.complete.replace("{{synopsis}}", fragments[0].content);
+          prompt = injectProfiles(prompt);
           messages = [
             { role: "system", content: "You are a senior novelist." },
             { role: "user", content: prompt },
@@ -173,7 +220,6 @@ const plugin: MainPlugin = {
           break;
         }
         case "workshop": {
-          // Workshop mode — handled by workshopStart + workshopAnswer + workshopRevise flow
           return { success: false, error: "Workshop mode must be started via workshopStart" };
         }
         default:
@@ -239,16 +285,20 @@ const plugin: MainPlugin = {
         return { success: false, error: "No content to analyze" };
       }
 
+      const profiles = loadProfiles(ctx, fragment.projectId);
+
       const send = (channel: string, payload: any) => ctx.sendMessage(channel, payload);
 
-      // Send immediate progress feedback
       send("streamChunk", { content: "Analyzing your text and generating critique questions...\n\n" });
 
       const controller = new AbortController();
       activeRequests.set("workshop_" + params.fragmentId, controller);
 
       let fullText = "";
-      const prompt = PROMPTS.workshopAnalyze.replace("{{chapter}}", content);
+      let prompt = PROMPTS.workshopAnalyze
+        .replace("{{protagonist_profile}}", profiles.protagonistProfile)
+        .replace("{{world_ontology}}", profiles.worldOntology)
+        .replace("{{chapter}}", content);
       console.log("[agent] workshopStart: content length =", content.length, "chars, sending to", config.model);
       llmLogs.push({ ts: new Date().toISOString(), mode: "workshop-analyze", system: "You are a strict writing workshop mentor. Return ONLY valid JSON.", user: prompt, response: "" });
       const logIdx = llmLogs.length - 1;
@@ -407,11 +457,15 @@ const plugin: MainPlugin = {
         return { success: false, error: "Fragment not found" };
       }
 
+      const profiles = loadProfiles(ctx, fragments[0].projectId);
+
       const send = (channel: string, payload: any) => ctx.sendMessage(channel, payload);
       const controller = new AbortController();
       activeRequests.set("workshop_revise_" + params.fragmentId, controller);
 
       let prompt = PROMPTS.workshopRevise;
+      prompt = prompt.replace("{{protagonist_profile}}", profiles.protagonistProfile);
+      prompt = prompt.replace("{{world_ontology}}", profiles.worldOntology);
       prompt = prompt.replace("{{chapter}}", fragments[0].content);
       prompt = prompt.replace("{{discussion}}", params.discussion);
 

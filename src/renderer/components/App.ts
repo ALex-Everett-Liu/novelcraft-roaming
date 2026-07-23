@@ -7,7 +7,7 @@ import { api } from "../rpc/api";
 import { getAllThemes, applyTheme, getCurrentTheme } from "../theme/themeManager";
 
 function SettingsModal({ onClose }: { onClose: () => void }) {
-  const [tab, setTab] = useState<"llm" | "theme" | "plugins">("llm");
+  const [tab, setTab] = useState<"llm" | "theme" | "plugins" | "novel">("llm");
   const [baseUrl, setBaseUrl] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("");
@@ -18,6 +18,14 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [error, setError] = useState("");
   const [plugins, setPlugins] = useState<any[]>([]);
+
+  const [novelTitle, setNovelTitle] = useState("");
+  const [novelAuthor, setNovelAuthor] = useState("");
+  const [novelProtagonist, setNovelProtagonist] = useState("");
+  const [novelSynopsis, setNovelSynopsis] = useState("");
+  const [novelWorldSetting, setNovelWorldSetting] = useState("");
+  const [novelWritingStyle, setNovelWritingStyle] = useState("");
+  const [novelSaved, setNovelSaved] = useState(false);
 
   useEffect(() => {
     api.listPlugins().then((res) => {
@@ -33,6 +41,15 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
       setModel(config.model || "deepseek-chat");
       setTemperature(String(config.temperature ?? 0.8));
       setMaxTokens(String(config.maxTokens ?? 8192));
+    }
+    const p = store.state.value.project?.novelProfile;
+    if (p) {
+      setNovelTitle(p.title || "");
+      setNovelAuthor(p.author || "");
+      setNovelProtagonist(p.protagonist || "");
+      setNovelSynopsis(p.synopsis || "");
+      setNovelWorldSetting(p.worldSetting || "");
+      setNovelWritingStyle(p.writingStyle || "");
     }
   }, []);
 
@@ -86,6 +103,22 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
     setTimeout(() => setSaved(false), 2000);
   };
 
+  const handleNovelSave = async () => {
+    const project = store.state.value.project;
+    if (!project) return;
+    const profile = {
+      title: novelTitle.trim(),
+      author: novelAuthor.trim(),
+      protagonist: novelProtagonist.trim(),
+      synopsis: novelSynopsis.trim(),
+      worldSetting: novelWorldSetting.trim(),
+      writingStyle: novelWritingStyle.trim(),
+    };
+    await api.novelProfileSave({ projectId: project.id, novelProfile: profile });
+    setNovelSaved(true);
+    setTimeout(() => setNovelSaved(false), 2000);
+  };
+
   const currentTheme = getCurrentTheme();
   const allThemes = getAllThemes();
 
@@ -100,6 +133,7 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
           <button class=${`settings-tab ${tab === "llm" ? "settings-tab-active" : ""}`} onClick=${() => setTab("llm")}>LLM</button>
           <button class=${`settings-tab ${tab === "theme" ? "settings-tab-active" : ""}`} onClick=${() => setTab("theme")}>Theme</button>
           <button class=${`settings-tab ${tab === "plugins" ? "settings-tab-active" : ""}`} onClick=${() => setTab("plugins")}>Plugins</button>
+          <button class=${`settings-tab ${tab === "novel" ? "settings-tab-active" : ""}`} onClick=${() => setTab("novel")}>Novel</button>
         </div>
 
         ${tab === "llm" &&
@@ -178,6 +212,31 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
                   </div>
                 </div>
               `)}
+          </div>
+        </section>
+        `}
+
+        ${tab === "novel" &&
+        html`
+        <section class="settings-section">
+          <h3>Novel Profile</h3>
+          <p class="settings-hint">Provide basic metadata for context extraction and prompt injection. Fields auto-filled from protagonist extraction when available.</p>
+          <label class="settings-label">Title</label>
+          <input class="settings-input" type="text" value=${novelTitle} onInput=${(e: Event) => setNovelTitle((e.target as HTMLInputElement).value)} placeholder="Novel title" />
+          <label class="settings-label">Author</label>
+          <input class="settings-input" type="text" value=${novelAuthor} onInput=${(e: Event) => setNovelAuthor((e.target as HTMLInputElement).value)} placeholder="Author name" />
+          <label class="settings-label">Protagonist</label>
+          <input class="settings-input" type="text" value=${novelProtagonist} onInput=${(e: Event) => setNovelProtagonist((e.target as HTMLInputElement).value)} placeholder="Protagonist name" />
+          <label class="settings-label">Synopsis</label>
+          <textarea class="settings-textarea" value=${novelSynopsis} onInput=${(e: Event) => setNovelSynopsis((e.target as HTMLTextAreaElement).value)} placeholder="Brief synopsis of the novel" rows="3" spellcheck=${false} />
+          <label class="settings-label">World Setting</label>
+          <textarea class="settings-textarea" value=${novelWorldSetting} onInput=${(e: Event) => setNovelWorldSetting((e.target as HTMLTextAreaElement).value)} placeholder="Summary of the world setting / genre / era" rows="2" spellcheck=${false} />
+          <label class="settings-label">Writing Style</label>
+          <textarea class="settings-textarea" value=${novelWritingStyle} onInput=${(e: Event) => setNovelWritingStyle((e.target as HTMLTextAreaElement).value)} placeholder="Writing style notes (e.g. first-person, literary, fast-paced)" rows="2" spellcheck=${false} />
+          <div class="settings-actions">
+            <button class="settings-btn" onClick=${handleNovelSave}>
+              ${novelSaved ? "Saved!" : "Save Novel Profile"}
+            </button>
           </div>
         </section>
         `}

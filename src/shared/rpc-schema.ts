@@ -6,6 +6,9 @@ import type {
   LLMConfig,
   AgentMode,
   WorkshopState,
+  ProtagonistProfile,
+  WorldOntology,
+  NovelProfile,
   CreateFragmentParams,
   UpdateFragmentParams,
   DeleteFragmentParams,
@@ -18,6 +21,10 @@ import type {
   WorkshopReviseParams,
   ImportTxtParams,
   SaveLLMConfigParams,
+  ProtagonistExtractParams,
+  WorldOntologyExtractParams,
+  BridgeExtractParams,
+  NovelProfileSaveParams,
   PluginInfo,
 } from "./types";
 
@@ -69,12 +76,25 @@ export type NovelCraftRPCType = {
       restoreFromBackup: { params: {}; response: RpcResult<void> };
       hasBackup: { params: {}; response: RpcResult<boolean> };
       reportUnsavedState: { params: { hasUnsaved: boolean }; response: void };
+
+      // Context Extraction
+      protagonistExtract: { params: ProtagonistExtractParams; response: RpcResult<void> };
+      worldOntologyExtract: { params: WorldOntologyExtractParams; response: RpcResult<void> };
+      bridgeExtract: { params: BridgeExtractParams; response: RpcResult<void> };
+      extractionCancel: { params: {}; response: RpcResult<void> };
+      protagonistGet: { params: { projectId: string }; response: RpcResult<ProtagonistProfile | null> };
+      worldOntologyGet: { params: { projectId: string }; response: RpcResult<WorldOntology | null> };
+      novelProfileSave: { params: NovelProfileSaveParams; response: RpcResult<void> };
     };
     messages: {
       streamChunk: { content: string };
       streamDone: { fullText: string };
       streamError: { message: string; code?: string };
       workshopStateChanged: WorkshopState;
+      extractionChunk: { type: string; content: string; phase: string };
+      extractionDone: { type: string; result: any; statusMessage: string };
+      extractionError: { type: string; message: string; code?: string };
+      extractionProgress: { type: string; batch: number; totalBatches: number };
     };
   };
   webview: {

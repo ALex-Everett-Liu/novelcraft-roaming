@@ -32,6 +32,8 @@ const mutatingOps = [
   "configSave",
   "agentRun",
   "workshopStart", "workshopAnswer", "workshopRevise", "workshopAccept",
+  "protagonistExtract", "worldOntologyExtract", "bridgeExtract",
+  "novelProfileSave",
 ];
 
 const wrapMutating = (name: string, fn: (params: unknown) => Promise<unknown>) => {
@@ -82,6 +84,10 @@ const novelcraftRPC = BrowserView.defineRPC({
       streamDone: () => {},
       streamError: () => {},
       workshopStateChanged: () => {},
+      extractionChunk: () => {},
+      extractionDone: () => {},
+      extractionError: () => {},
+      extractionProgress: () => {},
     },
   },
 });

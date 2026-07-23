@@ -1,5 +1,54 @@
 import { z } from "zod";
 
+// ===== Novel Profile =====
+export const NovelProfileSchema = z.object({
+  title: z.string().default(""),
+  author: z.string().default(""),
+  protagonist: z.string().default(""),
+  synopsis: z.string().default(""),
+  worldSetting: z.string().default(""),
+  writingStyle: z.string().default(""),
+});
+
+export type NovelProfile = z.infer<typeof NovelProfileSchema>;
+
+// ===== Protagonist Profile (14-dim psychology archive) =====
+export const ProtagonistProfileSchema = z.object({
+  basicAnchors: z.record(z.any()).default({}),
+  personalitySystem: z.record(z.any()).default({}),
+  motivationSystem: z.record(z.any()).default({}),
+  emotionDefense: z.record(z.any()).default({}),
+  behaviorFingerprint: z.record(z.any()).default({}),
+  relationshipCoordinate: z.record(z.any()).default({}),
+  growthArc: z.record(z.any()).default({}),
+  oocRedlines: z.record(z.any()).default({}),
+  epistemicState: z.record(z.any()).default({}),
+  narrativeVoice: z.record(z.any()).default({}),
+  worldInteraction: z.record(z.any()).default({}),
+  culturalScripts: z.record(z.any()).default({}),
+  selfContradictions: z.record(z.any()).default({}),
+  embodiedExperience: z.record(z.any()).default({}),
+  extractedAt: z.string().nullable().default(null),
+  sourceChapterRange: z.tuple([z.number(), z.number()]).nullable().default(null),
+});
+
+export type ProtagonistProfile = z.infer<typeof ProtagonistProfileSchema>;
+
+// ===== World Ontology (7-dim world-building meta-description) =====
+export const WorldOntologySchema = z.object({
+  existentialTopology: z.record(z.any()).default({}),
+  causalArchitecture: z.record(z.any()).default({}),
+  spatioTemporalOntology: z.record(z.any()).default({}),
+  informationEpistemology: z.record(z.any()).default({}),
+  axiologicalFoundation: z.record(z.any()).default({}),
+  becomingDynamics: z.record(z.any()).default({}),
+  narrativeOntology: z.record(z.any()).default({}),
+  extractedAt: z.string().nullable().default(null),
+  sourceChapterRange: z.tuple([z.number(), z.number()]).nullable().default(null),
+});
+
+export type WorldOntology = z.infer<typeof WorldOntologySchema>;
+
 // ===== Fragment =====
 export const FragmentTypeEnum = z.enum([
   "scene",
@@ -45,6 +94,9 @@ export const ProjectSchema = z.object({
   name: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  novelProfile: NovelProfileSchema.nullable().default(null),
+  protagonistProfile: ProtagonistProfileSchema.nullable().default(null),
+  worldOntology: WorldOntologySchema.nullable().default(null),
 });
 
 export type Project = z.infer<typeof ProjectSchema>;
@@ -189,6 +241,28 @@ export interface ImportTxtParams {
 
 export interface SaveLLMConfigParams {
   config: LLMConfig;
+}
+
+// ===== Extraction Params =====
+export interface ProtagonistExtractParams {
+  projectId: string;
+  fragmentIds?: string[];
+  lookback?: number;
+}
+
+export interface WorldOntologyExtractParams {
+  projectId: string;
+  fragmentIds?: string[];
+  lookback?: number;
+}
+
+export interface BridgeExtractParams {
+  projectId: string;
+}
+
+export interface NovelProfileSaveParams {
+  projectId: string;
+  novelProfile: NovelProfile;
 }
 
 // ===== RPC Result =====

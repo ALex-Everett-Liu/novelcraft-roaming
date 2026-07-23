@@ -1,6 +1,17 @@
 import { signal } from "@preact/signals";
-import type { Fragment, Chapter, Project, LLMConfig, AgentMode, WorkshopState } from "../../shared/types";
+import type { Fragment, Chapter, Project, LLMConfig, AgentMode, WorkshopState, ProtagonistProfile, WorldOntology, NovelProfile } from "../../shared/types";
 import { api } from "../rpc/api";
+
+export interface ExtractionState {
+  type: string;
+  streamText: string;
+  complete: boolean;
+  result: any | null;
+  statusMessage: string;
+  error: string;
+  batch: number;
+  totalBatches: number;
+}
 
 export interface AppState {
   project: Project | null;
@@ -12,6 +23,9 @@ export interface AppState {
   streamText: string;
   streamComplete: boolean;
   workshopState: WorkshopState | null;
+  extraction: ExtractionState | null;
+  protagonistProfile: ProtagonistProfile | null;
+  worldOntology: WorldOntology | null;
   llmConfig: LLMConfig | null;
   loading: boolean;
   unsavedCount: number;
@@ -28,6 +42,9 @@ function createDefaultState(): AppState {
     streamText: "",
     streamComplete: false,
     workshopState: null,
+    extraction: null,
+    protagonistProfile: null,
+    worldOntology: null,
     llmConfig: null,
     loading: true,
     unsavedCount: 0,
@@ -55,6 +72,7 @@ class Store {
         this.update({ project });
         await this.loadFragments();
         await this.loadChapters();
+        await this.loadProfiles();
       }
 
       // Load LLM config
@@ -98,9 +116,13 @@ class Store {
       streamText: "",
       streamComplete: false,
       workshopState: null,
+      extraction: null,
+      protagonistProfile: null,
+      worldOntology: null,
     });
     await this.loadFragments();
     await this.loadChapters();
+    await this.loadProfiles();
   }
 
   async createFragment(content?: string): Promise<Fragment | null> {
@@ -191,6 +213,67 @@ class Store {
 
   setWorkshopState(state: WorkshopState): void {
     this.update({ workshopState: state });
+  }
+
+  // ===== Extraction =====
+  async startExtraction(type: string, projectId: string, fragmentIds?: string[]): Promise<void> {
+    this.update({
+      extraction: { type, streamText: "", complete: false, result: null, statusMessage: "", error: "", batch: 0, totalBatches: 0 },
+    });
+    if (type === "protagonist") {
+      await api.protagonistExtract({ projectId, fragmentIds });
+    } else if (type === "worldview") {
+      await api.worldOntologyExtract({ projectId, fragmentIds });
+    } else if (type === "bridge") {
+      await api.bridgeExtract({ projectId });
+    }
+  }
+
+  appendExtractionChunk(type: string, chunk: string): void {
+    const e = this.state.value.extraction;
+    if (!e || e.type !== type) return;
+    this.update({ extraction: { ...e, streamText: e.streamText + chunk } });
+  }
+
+  updateExtractionProgress(type: string, batch: number, totalBatches: number): void {
+    const e = this.state.value.extraction;
+    if (!e || e.type !== type) return;
+    this.update({ extraction: { ...e, batch, totalBatches } });
+  }
+
+  completeExtraction(type: string, result: any, statusMessage: string): void {
+    const e = this.state.value.extraction;
+    if (!e || e.type !== type) return;
+    this.update({
+      extraction: { ...e, complete: true, result, statusMessage },
+      ...(type === "protagonist" ? { protagonistProfile: result } : {}),
+      ...(type === "worldview" ? { worldOntology: result } : {}),
+    });
+    this.markModified();
+  }
+
+  errorExtraction(type: string, message: string): void {
+    const e = this.state.value.extraction;
+    if (!e || e.type !== type) return;
+    this.update({ extraction: { ...e, complete: true, error: message } });
+  }
+
+  cancelExtraction(): void {
+    api.extractionCancel();
+    this.update({ extraction: null });
+  }
+
+  async loadProfiles(): Promise<void> {
+    const project = this.state.value.project;
+    if (!project) return;
+    const pRes = await api.protagonistGet(project.id);
+    if (pRes.success && pRes.data) {
+      this.update({ protagonistProfile: pRes.data });
+    }
+    const wRes = await api.worldOntologyGet(project.id);
+    if (wRes.success && wRes.data) {
+      this.update({ worldOntology: wRes.data });
+    }
   }
 
   async saveLLMConfig(config: LLMConfig): Promise<void> {

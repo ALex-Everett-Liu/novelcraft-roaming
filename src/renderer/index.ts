@@ -50,6 +50,18 @@ const rpc = Electroview.defineRPC<NovelCraftRPCType>({
         }
         store.setWorkshopState(state);
       },
+      extractionChunk: ({ type, content }: { type: string; content: string }) => {
+        store.appendExtractionChunk(type, content);
+      },
+      extractionDone: ({ type, result, statusMessage }: { type: string; result: any; statusMessage: string }) => {
+        store.completeExtraction(type, result, statusMessage);
+      },
+      extractionError: ({ type, message }: { type: string; message: string }) => {
+        store.errorExtraction(type, message);
+      },
+      extractionProgress: ({ type, batch, totalBatches }: { type: string; batch: number; totalBatches: number }) => {
+        store.updateExtractionProgress(type, batch, totalBatches);
+      },
     },
   },
 });

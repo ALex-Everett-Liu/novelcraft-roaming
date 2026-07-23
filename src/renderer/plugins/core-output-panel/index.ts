@@ -217,12 +217,156 @@ function WorkshopChat() {
   `;
 }
 
+// ===== Extraction Progress View =====
+function ExtractionView() {
+  const extraction = store.state.value.extraction;
+  if (!extraction) return html`<div>No extraction data</div>`;
+
+  if (extraction.error) {
+    return html`
+      <div class="output-container">
+        <div class="extraction-error">${extraction.error}</div>
+      </div>
+    `;
+  }
+
+  if (!extraction.complete) {
+    return html`
+      <div class="output-container">
+        <div class="extraction-progress-view">
+          Extracting ${extraction.type}...
+          ${extraction.totalBatches > 1 ? ` (Batch ${extraction.batch}/${extraction.totalBatches})` : ""}
+        </div>
+        <div class="output-content">${extraction.streamText}</div>
+      </div>
+    `;
+  }
+
+  return html`
+    <div class="output-container">
+      <div class="extraction-done">${extraction.statusMessage}</div>
+    </div>
+  `;
+}
+
+// ===== Profile Viewer (Foldable JSON) =====
+const DIMENSION_LABELS: Record<string, string> = {
+  basicAnchors: "基础锚点",
+  personalitySystem: "人格操作系统",
+  motivationSystem: "动力与动机系统",
+  emotionDefense: "情感与防御机制",
+  behaviorFingerprint: "行为指纹与身体语言",
+  relationshipCoordinate: "关系坐标系",
+  growthArc: "变化轨迹与弧光",
+  oocRedlines: "OOC红线与强制约束",
+  epistemicState: "认知不对等模型",
+  narrativeVoice: "内在叙事声音",
+  worldInteraction: "主角-世界交互层",
+  culturalScripts: "文化-意识形态层",
+  selfContradictions: "矛盾与多重自我",
+  embodiedExperience: "身体现象学",
+  existentialTopology: "存在拓扑",
+  causalArchitecture: "因果架构",
+  spatioTemporalOntology: "时空本体论",
+  informationEpistemology: "信息与认识论",
+  axiologicalFoundation: "价值论基础",
+  becomingDynamics: "生成动力学",
+  narrativeOntology: "叙事本体论",
+};
+
+function FoldableSection({ label, data }: { label: string; data: any }) {
+  const [open, setOpen] = useState(false);
+
+  if (!data || typeof data !== "object" || (Object.keys(data).length === 0)) {
+    return html`
+      <div class="profile-dim profile-dim-empty">
+        <span>${label}</span>
+        <span class="profile-dim-empty-tag">(empty)</span>
+      </div>
+    `;
+  }
+
+  const keys = Object.keys(data);
+
+  return html`
+    <div class="profile-dim">
+      <button class="profile-dim-toggle" onClick=${() => setOpen(!open)}>
+        <span class="profile-dim-arrow">${open ? "v" : ">"}</span>
+        <span class="profile-dim-label">${label}</span>
+        <span class="profile-dim-count">${keys.length} fields</span>
+      </button>
+      ${open && html`
+        <div class="profile-dim-body">
+          ${keys.map((k) => html`
+            <div class="profile-field">
+              <span class="profile-field-key">${k}</span>
+              <span class="profile-field-value">
+                ${typeof data[k] === "object"
+                  ? JSON.stringify(data[k], null, 2)
+                  : String(data[k])}
+              </span>
+            </div>
+          `)}
+        </div>
+      `}
+    </div>
+  `;
+}
+
+function ProfileViewer() {
+  const [tab, setTab] = useState<"protagonist" | "ontology">("protagonist");
+  const protagonistProfile = store.state.value.protagonistProfile;
+  const worldOntology = store.state.value.worldOntology;
+
+  const currentData = tab === "protagonist" ? protagonistProfile : worldOntology;
+  const metaKeys = ["extractedAt", "sourceChapterRange"];
+
+  const dimensions = currentData
+    ? Object.keys(currentData).filter((k) => !metaKeys.includes(k))
+    : [];
+
+  return html`
+    <div class="profile-viewer">
+      <div class="profile-tabs">
+        <button
+          class=${`profile-tab ${tab === "protagonist" ? "profile-tab-active" : ""}`}
+          onClick=${() => setTab("protagonist")}
+          disabled=${!protagonistProfile}
+        >
+          Protagonist ${protagonistProfile ? "" : "(none)"}
+        </button>
+        <button
+          class=${`profile-tab ${tab === "ontology" ? "profile-tab-active" : ""}`}
+          onClick=${() => setTab("ontology")}
+          disabled=${!worldOntology}
+        >
+          Worldview ${worldOntology ? "" : "(none)"}
+        </button>
+      </div>
+      <div class="profile-content">
+        ${currentData && dimensions.length > 0
+          ? dimensions.map((dim) => html`
+              <${FoldableSection}
+                label=${`${DIMENSION_LABELS[dim] || dim} (${dim})`}
+                data=${currentData[dim]}
+              />
+            `)
+          : html`<div class="profile-empty">No data extracted yet. Click "Extract Profile" or "Extract Worldview" in the toolbar.</div>`
+        }
+      </div>
+    </div>
+  `;
+}
+
 function OutputPanel() {
   const [, forceUpdate] = useState(0);
   const streamText = store.state.value.streamText;
   const streamComplete = store.state.value.streamComplete;
   const agentMode = store.state.value.agentMode;
   const selectedIds = store.state.value.selectedFragmentIds;
+  const extraction = store.state.value.extraction;
+  const protagonistProfile = store.state.value.protagonistProfile;
+  const worldOntology = store.state.value.worldOntology;
 
   useEffect(() => {
     return store.state.subscribe(() => forceUpdate((n) => n + 1));
@@ -267,6 +411,16 @@ function OutputPanel() {
   // ─── Workshop: Copilot Chat ──────────────────────
   if (agentMode === "workshop") {
     return html`<${WorkshopChat} />`;
+  }
+
+  // ─── Extraction active ─────────────────────────────
+  if (extraction) {
+    return html`<${ExtractionView} />`;
+  }
+
+  // ─── Profiles available (show foldable viewer) ─────
+  if (protagonistProfile || worldOntology) {
+    return html`<${ProfileViewer} />`;
   }
 
   // ─── Non-workshop modes ──────────────────────────

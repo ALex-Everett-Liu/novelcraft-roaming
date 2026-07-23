@@ -31,6 +31,10 @@ function AgentToolbar() {
   const [, forceUpdate] = useState(0);
   const activeMode = store.state.value.agentMode;
   const selectedCount = store.state.value.selectedFragmentIds.length;
+  const extraction = store.state.value.extraction;
+  const protagonistProfile = store.state.value.protagonistProfile;
+  const worldOntology = store.state.value.worldOntology;
+  const project = store.state.value.project;
 
   useEffect(() => {
     return store.state.subscribe(() => forceUpdate((n) => n + 1));
@@ -73,6 +77,19 @@ function AgentToolbar() {
 
   const canRun = activeMode && (selectedCount > 0 || store.state.value.focusedFragmentId !== null);
 
+  const handleExtract = (type: string) => {
+    if (!project) return;
+    const selectedIds = store.state.value.selectedFragmentIds.length > 0
+      ? store.state.value.selectedFragmentIds : undefined;
+    store.startExtraction(type, project.id, selectedIds);
+  };
+
+  const handleCancelExtraction = () => {
+    store.cancelExtraction();
+  };
+
+  const isExtracting = extraction && !extraction.complete;
+
   return html`
     <div class="agent-modes">
       <div class="agent-modes-grid">
@@ -88,12 +105,54 @@ function AgentToolbar() {
           `
         )}
       </div>
+
+      <div class="extraction-section">
+        <div class="extraction-section-label">Context Extraction</div>
+        <div class="extraction-buttons">
+          <button
+            class="extract-btn"
+            onClick=${() => handleExtract("protagonist")}
+            disabled=${isExtracting}
+            title="Extract 14-dim psychology profile from all fragments"
+          >
+            ${protagonistProfile ? "Update Profile" : "Extract Profile"}
+          </button>
+          <button
+            class="extract-btn"
+            onClick=${() => handleExtract("worldview")}
+            disabled=${isExtracting}
+            title="Extract 7-dim world ontology from all fragments"
+          >
+            ${worldOntology ? "Update Worldview" : "Extract Worldview"}
+          </button>
+        </div>
+        ${isExtracting && html`
+          <div class="extraction-progress">
+            <span>Extracting ${extraction.type}...</span>
+            ${extraction.totalBatches > 1 && html`
+              <span>Batch ${extraction.batch}/${extraction.totalBatches}</span>
+            `}
+            <button class="extract-cancel-btn" onClick=${handleCancelExtraction}>Cancel</button>
+          </div>
+        `}
+        ${protagonistProfile && !isExtracting && html`
+          <div class="extraction-status">Profile ready</div>
+        `}
+        ${worldOntology && !isExtracting && html`
+          <div class="extraction-status">Worldview ready</div>
+        `}
+      </div>
+
       ${activeMode &&
       (() => {
         const effectiveCount = selectedCount > 0 ? selectedCount : (store.state.value.focusedFragmentId ? 1 : 0);
+        const isWorkshop = activeMode === "workshop";
         return html`
         <div class="agent-run-bar">
           <span class="agent-run-info">${activeMode} — ${effectiveCount} fragment${effectiveCount !== 1 ? "s" : ""}</span>
+          ${isWorkshop && !protagonistProfile && html`
+            <span class="workshop-hint">Tip: Extract Profile first for better analysis</span>
+          `}
           <button class="agent-run-btn" onClick=${handleRun} disabled=${!canRun}>Run</button>
         </div>
         `;

@@ -1,5 +1,5 @@
 import type { NovelCraftRPCType } from "../../shared/rpc-schema";
-import type { RpcResult, Fragment, Chapter, Project, LLMConfig, WorkshopState, PluginInfo } from "../../shared/types";
+import type { RpcResult, Fragment, Chapter, Project, LLMConfig, WorkshopState, ProtagonistProfile, WorldOntology, NovelProfile, PluginInfo } from "../../shared/types";
 
 type RequestFn = (method: string, params?: any) => Promise<any>;
 
@@ -102,4 +102,20 @@ export const api = {
   // LLM Logs
   getLlmLogs: () =>
     req<RpcResult<any[]>>("getLlmLogs", {}),
+
+  // Context Extraction
+  protagonistExtract: (params: { projectId: string; fragmentIds?: string[] }) =>
+    req<RpcResult<void>>("protagonistExtract", params),
+  worldOntologyExtract: (params: { projectId: string; fragmentIds?: string[] }) =>
+    req<RpcResult<void>>("worldOntologyExtract", params),
+  bridgeExtract: (params: { projectId: string }) =>
+    req<RpcResult<void>>("bridgeExtract", params),
+  extractionCancel: () =>
+    req<RpcResult<void>>("extractionCancel", {}),
+  protagonistGet: (projectId: string) =>
+    req<RpcResult<ProtagonistProfile | null>>("protagonistGet", { projectId }),
+  worldOntologyGet: (projectId: string) =>
+    req<RpcResult<WorldOntology | null>>("worldOntologyGet", { projectId }),
+  novelProfileSave: (params: { projectId: string; novelProfile: NovelProfile }) =>
+    req<RpcResult<void>>("novelProfileSave", params),
 };

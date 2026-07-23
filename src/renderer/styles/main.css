@@ -1020,3 +1020,264 @@ body {
 .workshop-answer-input:focus {
   border-color: var(--accent);
 }
+
+/* ─── Extraction Section ───────────────── */
+.extraction-section {
+  margin-top: 8px;
+  padding: 6px 4px 0;
+  border-top: 1px solid var(--border);
+}
+
+.extraction-section-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+
+.extraction-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.extract-btn {
+  flex: 1;
+  padding: 5px 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+
+.extract-btn:hover:not(:disabled) {
+  background: var(--focus-bg);
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.extract-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.extraction-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 0.7rem;
+  color: var(--accent);
+}
+
+.extract-cancel-btn {
+  padding: 2px 8px;
+  border: 1px solid #e57373;
+  border-radius: 3px;
+  background: transparent;
+  color: #e57373;
+  font-size: 0.68rem;
+  cursor: pointer;
+  margin-left: auto;
+}
+
+.extraction-status {
+  margin-top: 4px;
+  font-size: 0.68rem;
+  color: #4ade80;
+}
+
+.workshop-hint {
+  font-size: 0.68rem;
+  color: #f59e0b;
+  margin-right: 8px;
+}
+
+/* ─── Extraction View ──────────────────── */
+.extraction-error {
+  padding: 12px;
+  border: 1px solid rgba(229, 115, 115, 0.3);
+  border-radius: 4px;
+  background: rgba(229, 115, 115, 0.1);
+  color: #e57373;
+  font-size: 0.85rem;
+}
+
+.extraction-progress-view {
+  padding: 8px 0;
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.extraction-done {
+  padding: 12px;
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  border-radius: 4px;
+  background: rgba(74, 222, 128, 0.1);
+  color: #4ade80;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* ─── Profile Viewer ───────────────────── */
+.profile-viewer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.profile-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.profile-tab {
+  flex: 1;
+  padding: 6px 8px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.profile-tab:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.profile-tab-active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.profile-tab:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.profile-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.profile-empty {
+  padding: 20px 12px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.profile-dim {
+  border-bottom: 1px solid var(--border);
+}
+
+.profile-dim-empty {
+  padding: 6px 8px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  display: flex;
+  justify-content: space-between;
+}
+
+.profile-dim-empty-tag {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+.profile-dim-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+}
+
+.profile-dim-toggle:hover {
+  background: var(--focus-bg);
+}
+
+.profile-dim-arrow {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  width: 12px;
+  flex-shrink: 0;
+}
+
+.profile-dim-label {
+  flex: 1;
+}
+
+.profile-dim-count {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.profile-dim-body {
+  padding: 4px 8px 8px 20px;
+}
+
+.profile-field {
+  display: flex;
+  flex-direction: column;
+  padding: 3px 0;
+  font-size: 0.75rem;
+}
+
+.profile-field-key {
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.7rem;
+  margin-bottom: 2px;
+}
+
+.profile-field-value {
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  padding-left: 4px;
+  border-left: 2px solid var(--border);
+}
+
+/* ─── Settings Novel Profile ──────────── */
+.settings-textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.85rem;
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+}
+
+.settings-textarea:focus {
+  border-color: var(--accent);
+}
+
+.settings-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
