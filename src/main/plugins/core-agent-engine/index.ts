@@ -7,6 +7,72 @@ import path from "path";
 import { existsSync, readFileSync } from "fs";
 import { getDataDir } from "../../database/connection";
 
+const llmLogs: { ts: string; mode: string; system: string; user: string; response: string }[] = [];
+
+function logLlmCall(mode: string, system: string, user: string) {
+  const entry = { ts: new Date().toISOString(), mode, system, user, response: "" };
+  llmLogs.push(entry);
+  console.log(`[llm-log] ${mode} — system: ${system.length}c, user: ${user.length}c`);
+  return entry;
+}
+
+function streamLLMWithLog(
+  opts: Parameters<typeof streamLLM>[0],
+  logEntry: { response: string },
+) {
+  const onChunk = opts.onChunk;
+  const onDone = opts.onDone;
+  const onError = opts.onError;
+
+  let fullText = "";
+
+  opts.onChunk = (chunk) => {
+    fullText += chunk;
+    onChunk(chunk);
+  };
+
+  opts.onDone = (text) => {
+    logEntry.response = fullText || text;
+    console.log(`[llm-log] response: ${logEntry.response.length}c`);
+    onDone(text);
+  };
+
+  opts.onError = (msg, code) => {
+    logEntry.response = `ERROR: ${msg}`;
+    onError(msg, code);
+  };
+
+  streamLLM(opts);
+}
+
+function runLoggedLLM(
+  config: LLMConfig,
+  mode: string,
+  system: string,
+  user: string,
+  signal: AbortSignal,
+  send: (channel: string, payload: any) => void,
+  onFinally: () => void,
+) {
+  const logEntry = logLlmCall(mode, system, user);
+  streamLLMWithLog({
+    baseUrl: config.baseUrl,
+    apiKey: config.apiKey,
+    model: config.model,
+    temperature: config.temperature,
+    maxTokens: config.maxTokens,
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: user },
+    ],
+    signal,
+    onChunk: (chunk) => send("streamChunk", { content: chunk }),
+    onDone: (fullText) => send("streamDone", { fullText }),
+    onError: (message, code) => send("streamError", { message, code }),
+  }, logEntry);
+  onFinally();
+}
+
 interface LLMConfig {
   baseUrl: string;
   apiKey: string;
@@ -171,7 +237,7 @@ const plugin: MainPlugin = {
           break;
         }
         case "workshop": {
-          // Workshop analyze phase — handled by workshopStart RPC
+          // Workshop mode — handled by workshopStart + workshopAnswer + workshopRevise flow
           return { success: false, error: "Workshop mode must be started via workshopStart" };
         }
         default:
@@ -179,20 +245,15 @@ const plugin: MainPlugin = {
       }
 
       // Start streaming
-      streamLLM({
-        baseUrl: config.baseUrl,
-        apiKey: config.apiKey,
-        model: config.model,
-        temperature: config.temperature,
-        maxTokens: config.maxTokens,
-        messages,
-        signal: controller.signal,
-        onChunk: (chunk) => send("streamChunk", { content: chunk }),
-        onDone: (fullText) => send("streamDone", { fullText }),
-        onError: (message, code) => send("streamError", { message, code }),
-      }).finally(() => {
-        activeRequests.delete(requestId);
-      });
+      runLoggedLLM(
+        config,
+        params.mode,
+        messages[0]?.content || "",
+        messages[1]?.content || "",
+        controller.signal,
+        send,
+        () => activeRequests.delete(requestId),
+      );
 
       return { success: true };
     }, { noPrefix: true });
@@ -206,7 +267,12 @@ const plugin: MainPlugin = {
     }, { noPrefix: true });
 
     // ─── Workshop ─────────────────────────────
-    ctx.registerRpcHandler("workshopStart", async (params: { fragmentId: string }) => {
+    ctx.registerRpcHandler("workshopStart", async (params: {
+      fragmentId: string;
+      segmentText?: string;
+      segmentIndex?: number;
+      totalSegments?: number;
+    }) => {
       const config = getConfig(ctx);
       if (!config || !config.apiKey) {
         return { success: false, error: "LLM not configured" };
@@ -218,8 +284,9 @@ const plugin: MainPlugin = {
       }
 
       const fragment = fragments[0];
-      if (fragment.wordCount < 100) {
-        return { success: false, error: "Workshop requires a fragment with at least 100 words" };
+      const content = params.segmentText || fragment.content;
+      if (!content.trim()) {
+        return { success: false, error: "No content to analyze" };
       }
 
       const send = (channel: string, payload: any) => ctx.sendMessage(channel, payload);
@@ -228,9 +295,12 @@ const plugin: MainPlugin = {
       activeRequests.set("workshop_" + params.fragmentId, controller);
 
       let fullText = "";
-      const prompt = PROMPTS.workshopAnalyze.replace("{{chapter}}", fragment.content);
+      const prompt = PROMPTS.workshopAnalyze.replace("{{chapter}}", content);
+      console.log("[agent] workshopStart: content length =", content.length, "chars");
 
-      await streamLLM({
+      const wsLog = logLlmCall("workshop-analyze", "You are a strict writing workshop mentor. Return ONLY valid JSON.", prompt);
+
+      streamLLMWithLog({
         baseUrl: config.baseUrl,
         apiKey: config.apiKey,
         model: config.model,
@@ -277,16 +347,58 @@ const plugin: MainPlugin = {
       return { success: true };
     }, { noPrefix: true });
 
-    ctx.registerRpcHandler("workshopAnswer", (params: {
+    ctx.registerRpcHandler("workshopAnswer", async (params: {
       fragmentId: string;
       answers: { questionId: string; answer: string }[];
+      questions: { id: string; question: string }[];
+      history: { role: string; content: string }[];
     }) => {
-      // Store answers — in a real implementation, this would persist in state
-      // For now, the renderer tracks these locally
+      const config = getConfig(ctx);
+      if (!config || !config.apiKey) {
+        return { success: false, error: "LLM not configured" };
+      }
+
+      const fragments = loadFragments(ctx, [params.fragmentId]);
+      if (fragments.length === 0) {
+        return { success: false, error: "Fragment not found" };
+      }
+
+      const send = (channel: string, payload: any) => ctx.sendMessage(channel, payload);
+      const controller = new AbortController();
+      activeRequests.set("workshop_answer_" + params.fragmentId, controller);
+
+      // Build the answers text from this round
+      const answersText = params.questions
+        .map((q, i) => `问：${q.question}\n答：${params.answers[i]?.answer || "(未回答)"}`)
+        .join("\n\n");
+
+      // Build discussion history text
+      const historyText = params.history
+        .map((h) => `${h.role === "agent" ? "导师" : "作者"}：${h.content}`)
+        .join("\n\n");
+
+      let prompt = PROMPTS.workshopDiscuss;
+      prompt = prompt.replace("{{chapter}}", fragments[0].content);
+      prompt = prompt.replace("{{history}}", historyText || "(初次讨论)");
+      prompt = prompt.replace("{{answers}}", answersText);
+
+      runLoggedLLM(
+        config,
+        "workshop-discuss",
+        "You are a writing workshop mentor. Always respond in Chinese.",
+        prompt,
+        controller.signal,
+        send,
+        () => activeRequests.delete("workshop_answer_" + params.fragmentId),
+      );
+
       return { success: true };
     }, { noPrefix: true });
 
-    ctx.registerRpcHandler("workshopRevise", async (params: { fragmentId: string }) => {
+    ctx.registerRpcHandler("workshopRevise", async (params: {
+      fragmentId: string;
+      discussion: string;
+    }) => {
       const config = getConfig(ctx);
       if (!config || !config.apiKey) {
         return { success: false, error: "LLM not configured" };
@@ -301,39 +413,30 @@ const plugin: MainPlugin = {
       const controller = new AbortController();
       activeRequests.set("workshop_revise_" + params.fragmentId, controller);
 
-      // The revision prompt needs the chapter and Q&A data
-      // In production, this would retrieve stored answers from state
-      let prompt = PROMPTS.workshopRevise.replace("{{chapter}}", fragments[0].content);
+      let prompt = PROMPTS.workshopRevise;
+      prompt = prompt.replace("{{chapter}}", fragments[0].content);
+      prompt = prompt.replace("{{discussion}}", params.discussion);
 
-      await streamLLM({
-        baseUrl: config.baseUrl,
-        apiKey: config.apiKey,
-        model: config.model,
-        temperature: config.temperature,
-        maxTokens: config.maxTokens,
-        messages: [
-          { role: "system", content: "You are a senior literary editor." },
-          { role: "user", content: prompt },
-        ],
-        signal: controller.signal,
-        onChunk: (chunk) => send("streamChunk", { content: chunk }),
-        onDone: (fullText) => {
-          send("streamDone", { fullText });
-          activeRequests.delete("workshop_revise_" + params.fragmentId);
-        },
-        onError: (message, code) => {
-          send("streamError", { message, code });
-          activeRequests.delete("workshop_revise_" + params.fragmentId);
-        },
-      });
+      runLoggedLLM(
+        config,
+        "workshop-revise",
+        "You are a senior literary editor revising based on workshop feedback.",
+        prompt,
+        controller.signal,
+        send,
+        () => activeRequests.delete("workshop_revise_" + params.fragmentId),
+      );
 
       return { success: true };
     }, { noPrefix: true });
 
     ctx.registerRpcHandler("workshopAccept", async (params: { fragmentId: string }) => {
       // Accept workshop result — update fragment with revised content
-      // The revised content is tracked by the renderer
       return { success: true };
+    }, { noPrefix: true });
+
+    ctx.registerRpcHandler("getLlmLogs", () => {
+      return { success: true, data: llmLogs };
     }, { noPrefix: true });
 
     ctx.log("Agent engine ready (8 modes)");

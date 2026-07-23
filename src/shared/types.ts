@@ -86,6 +86,7 @@ export type AgentRequest = z.infer<typeof AgentRequestSchema>;
 export const WorkshopStageEnum = z.enum([
   "analyzing",
   "questions",
+  "discussing",
   "revising",
   "review",
 ]);
@@ -104,6 +105,8 @@ export type CritiqueQuestion = z.infer<typeof CritiqueQuestionSchema>;
 export const WorkshopStateSchema = z.object({
   stage: WorkshopStageEnum,
   chapterFragmentId: z.string(),
+  segments: z.array(z.string()).default([]),
+  currentSegmentIndex: z.number().default(0),
   questions: z.array(CritiqueQuestionSchema).default([]),
   conversationHistory: z.array(
     z.object({
@@ -161,15 +164,21 @@ export interface AgentRunParams {
 
 export interface WorkshopStartParams {
   fragmentId: string;
+  segmentText?: string;
+  segmentIndex?: number;
+  totalSegments?: number;
 }
 
 export interface WorkshopAnswerParams {
   fragmentId: string;
   answers: { questionId: string; answer: string }[];
+  questions: { id: string; question: string }[];
+  history: { role: string; content: string }[];
 }
 
 export interface WorkshopReviseParams {
   fragmentId: string;
+  discussion: string;
 }
 
 export interface ImportTxtParams {

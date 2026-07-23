@@ -68,7 +68,7 @@ for (const name of mutatingOps) {
 }
 
 const novelcraftRPC = BrowserView.defineRPC({
-  maxRequestTime: 10000,
+  maxRequestTime: 60000,
   handlers: { requests },
 });
 

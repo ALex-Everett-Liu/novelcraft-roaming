@@ -65,12 +65,17 @@ export const api = {
     req<RpcResult<void>>("agentCancel", {}),
 
   // Workshop
-  workshopStart: (fragmentId: string) =>
-    req<RpcResult<WorkshopState>>("workshopStart", { fragmentId }),
-  workshopAnswer: (params: { fragmentId: string; answers: { questionId: string; answer: string }[] }) =>
+  workshopStart: (fragmentId: string, extra?: { segmentText?: string }) =>
+    req<RpcResult<WorkshopState>>("workshopStart", { fragmentId, ...extra }),
+  workshopAnswer: (params: {
+    fragmentId: string;
+    answers: { questionId: string; answer: string }[];
+    questions: { id: string; question: string }[];
+    history: { role: string; content: string }[];
+  }) =>
     req<RpcResult<void>>("workshopAnswer", params),
-  workshopRevise: (fragmentId: string) =>
-    req<RpcResult<void>>("workshopRevise", { fragmentId }),
+  workshopRevise: (params: { fragmentId: string; discussion: string }) =>
+    req<RpcResult<void>>("workshopRevise", params),
   workshopAccept: (fragmentId: string) =>
     req<RpcResult<Fragment>>("workshopAccept", { fragmentId }),
 
@@ -91,4 +96,8 @@ export const api = {
     req<RpcResult<boolean>>("hasBackup", {}),
   reportUnsavedState: (hasUnsaved: boolean) =>
     req<void>("reportUnsavedState", { hasUnsaved }),
+
+  // LLM Logs
+  getLlmLogs: () =>
+    req<RpcResult<any[]>>("getLlmLogs", {}),
 };

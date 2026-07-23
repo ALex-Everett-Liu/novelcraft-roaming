@@ -164,6 +164,9 @@ export class PluginManager {
           this.enablePlugin(p.pluginId).then((ok) => (ok ? { success: true } : { success: false, error: "Failed to enable" })),
         disablePlugin: (p: { pluginId: string }) =>
           this.disablePlugin(p.pluginId).then((ok) => (ok ? { success: true } : { success: false, error: "Failed to disable" })),
+
+        // LLM Logs
+        getLlmLogs: (p: any) => wrap("getLlmLogs", r.get("getLlmLogs"))(p),
       },
     };
   }

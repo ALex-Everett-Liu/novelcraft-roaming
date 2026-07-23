@@ -59,6 +59,7 @@ export type NovelCraftRPCType = {
 
       // Plugin management
       listPlugins: { params: {}; response: RpcResult<PluginInfo[]> };
+      getLlmLogs: { params: {}; response: RpcResult<any[]> };
       enablePlugin: { params: { id: string }; response: RpcResult<void> };
       disablePlugin: { params: { id: string }; response: RpcResult<void> };
 

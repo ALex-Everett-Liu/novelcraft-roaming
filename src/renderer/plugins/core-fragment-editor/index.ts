@@ -16,12 +16,17 @@ const plugin = {
 let container: HTMLDivElement | null = null;
 
 function FragmentEditor() {
+  const [, forceUpdate] = useState(0);
   const fragments = store.state.value.fragments;
   const focusedId = store.state.value.focusedFragmentId;
   const fragment = focusedId ? fragments.find((f) => f.id === focusedId) : null;
 
   const [title, setTitle] = useState(fragment?.title || "");
   const [content, setContent] = useState(fragment?.content || "");
+
+  useEffect(() => {
+    return store.state.subscribe(() => forceUpdate((n) => n + 1));
+  }, []);
 
   useEffect(() => {
     if (fragment) {

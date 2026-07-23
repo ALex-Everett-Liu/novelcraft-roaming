@@ -14,7 +14,7 @@ initializeTheme();
 
 // Initialize Electrobun RPC - connects to main process
 const rpc = Electroview.defineRPC<NovelCraftRPCType>({
-  maxRequestTime: 15000,
+  maxRequestTime: 60000,
   handlers: {
     requests: {},
     messages: {
@@ -22,6 +22,16 @@ const rpc = Electroview.defineRPC<NovelCraftRPCType>({
         store.appendStreamChunk(content);
       },
       streamDone: () => {
+        // Add completed stream text to workshop conversation history
+        const ws = store.state.value.workshopState;
+        if (ws && store.state.value.streamText) {
+          const updatedHistory = [
+            ...(ws.conversationHistory || []),
+            { role: "agent", content: store.state.value.streamText },
+          ];
+          store.setWorkshopState({ ...ws, conversationHistory: updatedHistory });
+          store.clearStream(); // moved to history, no longer needed in stream
+        }
         store.markStreamComplete();
       },
       streamError: ({ message }: { message: string }) => {
@@ -29,6 +39,15 @@ const rpc = Electroview.defineRPC<NovelCraftRPCType>({
         store.markStreamComplete();
       },
       workshopStateChanged: (state: any) => {
+        // Add agent's questions to conversation history if not already there
+        if (state.questions?.length > 0 && !state.conversationHistory?.length) {
+          state.conversationHistory = [{
+            role: "agent",
+            content: state.questions.map(
+              (q: any, i: number) => `${i + 1}. ${q.section ? `_${q.section}_ ` : ""}${q.question}`
+            ).join("\n\n"),
+          }];
+        }
         store.setWorkshopState(state);
       },
     },

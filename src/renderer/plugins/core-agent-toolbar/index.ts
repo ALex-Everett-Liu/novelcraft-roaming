@@ -1,5 +1,6 @@
 import { render } from "preact";
 import { html } from "htm/preact";
+import { useEffect, useState } from "preact/hooks";
 import { store } from "../../state/store";
 import { api } from "../../rpc/api";
 import type { RendererPluginContext } from "../../plugin-system/RendererPluginContext";
@@ -27,8 +28,13 @@ const MODES: { mode: AgentMode; label: string; description: string }[] = [
 let container: HTMLDivElement | null = null;
 
 function AgentToolbar() {
+  const [, forceUpdate] = useState(0);
   const activeMode = store.state.value.agentMode;
   const selectedCount = store.state.value.selectedFragmentIds.length;
+
+  useEffect(() => {
+    return store.state.subscribe(() => forceUpdate((n) => n + 1));
+  }, []);
 
   const handleModeClick = (mode: AgentMode) => {
     store.setAgentMode(activeMode === mode ? null : mode);
@@ -36,14 +42,36 @@ function AgentToolbar() {
 
   const handleRun = async () => {
     const mode = store.state.value.agentMode;
-    const fragmentIds = store.state.value.selectedFragmentIds;
+    const selectedIds = store.state.value.selectedFragmentIds;
+    const focusedId = store.state.value.focusedFragmentId;
+
+    const fragmentIds = selectedIds.length > 0
+      ? selectedIds
+      : focusedId ? [focusedId] : [];
+
     if (!mode || fragmentIds.length === 0) return;
 
+    // Get selected text from editor textarea
+    const textarea = document.querySelector(".editor-content") as HTMLTextAreaElement | null;
+    let segmentText: string | undefined;
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      if (start !== end) {
+        segmentText = textarea.value.substring(start, end);
+      }
+    }
+
     store.clearStream();
-    await api.agentRun({ mode, fragmentIds });
+
+    if (mode === "workshop") {
+      await api.workshopStart(fragmentIds[0], segmentText ? { segmentText } : undefined);
+    } else {
+      await api.agentRun({ mode, fragmentIds });
+    }
   };
 
-  const canRun = activeMode && selectedCount > 0;
+  const canRun = activeMode && (selectedCount > 0 || store.state.value.focusedFragmentId !== null);
 
   return html`
     <div class="agent-modes">
@@ -61,12 +89,15 @@ function AgentToolbar() {
         )}
       </div>
       ${activeMode &&
-      html`
+      (() => {
+        const effectiveCount = selectedCount > 0 ? selectedCount : (store.state.value.focusedFragmentId ? 1 : 0);
+        return html`
         <div class="agent-run-bar">
-          <span class="agent-run-info">${activeMode} — ${selectedCount} selected</span>
+          <span class="agent-run-info">${activeMode} — ${effectiveCount} fragment${effectiveCount !== 1 ? "s" : ""}</span>
           <button class="agent-run-btn" onClick=${handleRun} disabled=${!canRun}>Run</button>
         </div>
-      `}
+        `;
+      })()}
     </div>
   `;
 }
