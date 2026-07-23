@@ -15,7 +15,10 @@ All notable changes to the NovelCraft Roaming project.
 - **core-fragment-panel** renderer plugin: fragment list with type badges, selection, add/delete
 - **core-fragment-editor** renderer plugin: title + content editing with 2s debounced auto-save
 - **core-agent-toolbar** renderer plugin: 8 mode buttons in 4x2 grid with mode highlighting and Run button
-- **core-output-panel** renderer plugin: streaming output display with SSE chunk reception
+- **core-output-panel** renderer plugin: streaming output display with Accept/Reject buttons; Diverge mode JSON parsing + batch fragment creation; streamComplete state tracking
+- **core-settings-ui** renderer plugin: Settings dialog (LLM config + theme picker) with Ctrl+, shortcut
+- **Main→Renderer message bridge**: plugin sendMessage API via BrowserView RPC transport for SSE streaming chunks
+- **Toolbar**: Signals-based subscription (no polling), Settings button, Ctrl+S save shortcut
 - **Four-column layout**: Fragments (240px) | Editor (flex) | Agent Toolbar + Output (360px)
 - **Save/Discard mechanism**: backup-based with `ensureBackup()`/`commitSave()`/`restoreFromBackup()`
 - **Theme system**: dark/light themes with CSS custom properties (via `themeManager.ts`)

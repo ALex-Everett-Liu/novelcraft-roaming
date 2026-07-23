@@ -12,6 +12,7 @@ export interface AppState {
   focusedFragmentId: string | null;
   agentMode: AgentMode | null;
   streamText: string;
+  streamComplete: boolean;
   workshopState: WorkshopState | null;
   llmConfig: LLMConfig | null;
   loading: boolean;
@@ -27,6 +28,7 @@ function createDefaultState(): AppState {
     focusedFragmentId: null,
     agentMode: null,
     streamText: "",
+    streamComplete: false,
     workshopState: null,
     llmConfig: null,
     loading: true,
@@ -158,15 +160,19 @@ class Store {
   }
 
   setAgentMode(mode: AgentMode | null): void {
-    this.update({ agentMode: mode, streamText: "", workshopState: null });
+    this.update({ agentMode: mode, streamText: "", streamComplete: false, workshopState: null });
   }
 
   appendStreamChunk(chunk: string): void {
     this.update({ streamText: this.state.value.streamText + chunk });
   }
 
+  markStreamComplete(): void {
+    this.update({ streamComplete: true });
+  }
+
   clearStream(): void {
-    this.update({ streamText: "", workshopState: null });
+    this.update({ streamText: "", streamComplete: false, workshopState: null });
   }
 
   setWorkshopState(state: WorkshopState): void {

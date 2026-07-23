@@ -10,12 +10,14 @@ import coreFragmentPanel from "../plugins/core-fragment-panel/index";
 import coreFragmentEditor from "../plugins/core-fragment-editor/index";
 import coreAgentToolbar from "../plugins/core-agent-toolbar/index";
 import coreOutputPanel from "../plugins/core-output-panel/index";
+import coreSettingsUi from "../plugins/core-settings-ui/index";
 
 const RENDERER_MANIFESTS: Record<string, PluginManifest> = {
   "core-fragment-panel": coreFragmentPanel.manifest,
   "core-fragment-editor": coreFragmentEditor.manifest,
   "core-agent-toolbar": coreAgentToolbar.manifest,
   "core-output-panel": coreOutputPanel.manifest,
+  "core-settings-ui": coreSettingsUi.manifest,
 };
 
 const RENDERER_PLUGINS: Record<
@@ -26,6 +28,7 @@ const RENDERER_PLUGINS: Record<
   "core-fragment-editor": coreFragmentEditor,
   "core-agent-toolbar": coreAgentToolbar,
   "core-output-panel": coreOutputPanel,
+  "core-settings-ui": coreSettingsUi,
 };
 
 let eventBus: EventBus | null = null;

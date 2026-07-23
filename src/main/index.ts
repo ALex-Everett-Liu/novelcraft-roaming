@@ -72,6 +72,14 @@ const novelcraftRPC = BrowserView.defineRPC({
   handlers: { requests },
 });
 
+pluginManager.setSendMessage((channel: string, payload: unknown) => {
+  try {
+    (novelcraftRPC as any).send(channel, payload);
+  } catch (e) {
+    console.warn("[NovelCraft] Failed to send message to renderer:", e);
+  }
+});
+
 const mainWindow = new BrowserWindow({
   title: "NovelCraft",
   frame: { x: 0, y: 0, width: 1200, height: 800 },

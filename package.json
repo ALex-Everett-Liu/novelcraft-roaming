@@ -5,6 +5,7 @@
   "scripts": {
     "start": "bun run build:dev && electrobun dev",
     "build:dev": "bun install && electrobun build",
+    "dev": "electrobun dev",
     "build": "electrobun build"
   },
   "dependencies": {

@@ -2,19 +2,14 @@ import { html } from "htm/preact";
 import { useEffect, useState } from "preact/hooks";
 import { store } from "../state/store";
 
-export function Toolbar() {
-  const [unsavedCount, setUnsavedCount] = useState(0);
+export function Toolbar({ onOpenSettings }: { onOpenSettings: () => void }) {
+  const [hasUnsaved, setHasUnsaved] = useState(false);
 
   useEffect(() => {
-    // Subscribe to state changes
-    const interval = setInterval(() => {
-      setUnsavedCount(store.state.value.unsavedCount);
-    }, 500);
-    return () => clearInterval(interval);
+    return store.state.subscribe((state) => {
+      setHasUnsaved(state.unsavedCount > 0);
+    });
   }, []);
-
-  const handleSave = () => store.saveAll();
-  const handleDiscard = () => store.discardAll();
 
   return html`
     <header class="toolbar">
@@ -22,12 +17,13 @@ export function Toolbar() {
         <h1>NovelCraft</h1>
       </div>
       <div class="toolbar-actions">
-        ${unsavedCount > 0 &&
+        ${hasUnsaved &&
         html`
-          <span class="toolbar-unsaved">${unsavedCount} unsaved</span>
-          <button class="toolbar-btn toolbar-btn-save" onClick=${handleSave}>Save</button>
-          <button class="toolbar-btn toolbar-btn-discard" onClick=${handleDiscard}>Discard</button>
+          <span class="toolbar-unsaved">Unsaved</span>
+          <button class="toolbar-btn toolbar-btn-save" onClick=${() => store.saveAll()}>Save</button>
+          <button class="toolbar-btn toolbar-btn-discard" onClick=${() => store.discardAll()}>Discard</button>
         `}
+        <button class="toolbar-btn toolbar-btn-settings" onClick=${onOpenSettings}>Settings</button>
       </div>
     </header>
   `;
