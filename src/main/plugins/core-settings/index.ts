@@ -18,11 +18,11 @@ function loadConfig(): any {
   if (!existsSync(configPath)) {
     return {
       llm: {
-        baseUrl: "https://api.openai.com",
+        baseUrl: "https://api.deepseek.com",
         apiKey: "",
-        model: "gpt-4o",
+        model: "deepseek-chat",
         temperature: 0.8,
-        maxTokens: 4096,
+        maxTokens: 8192,
       },
     };
   }
@@ -51,11 +51,11 @@ const plugin: MainPlugin = {
     ctx.registerRpcHandler("configSave", (params: { config: any }) => {
       const current = loadConfig();
       current.llm = {
-        baseUrl: params.config.baseUrl || "https://api.openai.com",
+        baseUrl: params.config.baseUrl || "https://api.deepseek.com",
         apiKey: params.config.apiKey || "",
-        model: params.config.model || "gpt-4o",
+        model: params.config.model || "deepseek-chat",
         temperature: params.config.temperature ?? 0.8,
-        maxTokens: params.config.maxTokens ?? 4096,
+        maxTokens: params.config.maxTokens ?? 16384,
       };
       saveConfig(current);
       return { success: true };

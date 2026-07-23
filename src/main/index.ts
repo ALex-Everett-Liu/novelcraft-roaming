@@ -87,14 +87,6 @@ const mainWindow = new BrowserWindow({
   rpc: novelcraftRPC,
 });
 
-pluginManager.setSendMessage((channel: string, payload: unknown) => {
-  try {
-    (mainWindow as any).sendMessage?.(channel, payload);
-  } catch (e) {
-    console.warn("[NovelCraft] Failed to send message to renderer:", e);
-  }
-});
-
 Electrobun.events.on("before-quit", (event: { response?: { allow: boolean } }) => {
   if (hasUnsavedChanges && !userConfirmedQuitDespiteUnsaved) {
     event.response = { allow: false };

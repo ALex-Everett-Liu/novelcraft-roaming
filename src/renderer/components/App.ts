@@ -12,7 +12,7 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("");
   const [temperature, setTemperature] = useState("0.8");
-  const [maxTokens, setMaxTokens] = useState("4096");
+  const [maxTokens, setMaxTokens] = useState("8192");
   const [saved, setSaved] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
@@ -28,11 +28,11 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     const config = store.state.value.llmConfig;
     if (config) {
-      setBaseUrl(config.baseUrl || "https://api.openai.com");
+      setBaseUrl(config.baseUrl || "https://api.deepseek.com");
       setApiKey(config.apiKey || "");
-      setModel(config.model || "gpt-4o");
+      setModel(config.model || "deepseek-chat");
       setTemperature(String(config.temperature ?? 0.8));
-      setMaxTokens(String(config.maxTokens ?? 4096));
+      setMaxTokens(String(config.maxTokens ?? 8192));
     }
   }, []);
 
@@ -75,11 +75,11 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
       return;
     }
     const config = {
-      baseUrl: baseUrl.trim() || "https://api.openai.com",
+      baseUrl: baseUrl.trim() || "https://api.deepseek.com",
       apiKey: apiKey.trim(),
-      model: model.trim() || "gpt-4o",
+      model: model.trim() || "deepseek-chat",
       temperature: parseFloat(temperature) || 0.8,
-      maxTokens: parseInt(maxTokens) || 4096,
+      maxTokens: parseInt(maxTokens) || 8192,
     };
     await store.saveLLMConfig(config);
     setSaved(true);
@@ -107,11 +107,11 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
         <section class="settings-section">
           <h3>LLM Configuration</h3>
           <label class="settings-label">Base URL</label>
-          <input class="settings-input" type="text" value=${baseUrl} onInput=${(e: Event) => setBaseUrl((e.target as HTMLInputElement).value)} placeholder="https://api.openai.com" />
+          <input class="settings-input" type="text" value=${baseUrl} onInput=${(e: Event) => setBaseUrl((e.target as HTMLInputElement).value)} placeholder="https://api.deepseek.com" />
           <label class="settings-label">API Key</label>
           <input class="settings-input" type="password" value=${apiKey} onInput=${(e: Event) => setApiKey((e.target as HTMLInputElement).value)} placeholder="sk-..." />
           <label class="settings-label">Model</label>
-          <input class="settings-input" type="text" value=${model} onInput=${(e: Event) => setModel((e.target as HTMLInputElement).value)} placeholder="gpt-4o" />
+          <input class="settings-input" type="text" value=${model} onInput=${(e: Event) => setModel((e.target as HTMLInputElement).value)} placeholder="deepseek-chat" />
           <div class="settings-row">
             <div>
               <label class="settings-label">Temperature</label>

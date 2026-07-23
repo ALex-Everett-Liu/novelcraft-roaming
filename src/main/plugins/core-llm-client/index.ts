@@ -23,7 +23,7 @@ export async function streamLLM(options: LLMStreamOptions): Promise<void> {
     model: options.model,
     messages: options.messages,
     temperature: options.temperature ?? 0.8,
-    max_tokens: options.maxTokens ?? 4096,
+    max_tokens: options.maxTokens ?? 8192,
     stream: true,
   };
 

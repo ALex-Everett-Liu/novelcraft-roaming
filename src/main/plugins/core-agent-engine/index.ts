@@ -38,11 +38,11 @@ function getConfig(ctx: MainPluginContext): LLMConfig | null {
     if (existsSync(configPath)) {
       const cfg = JSON.parse(readFileSync(configPath, "utf-8"));
       return {
-        baseUrl: cfg.llm?.baseUrl || "https://api.openai.com",
+        baseUrl: cfg.llm?.baseUrl || "https://api.deepseek.com",
         apiKey: cfg.llm?.apiKey || "",
-        model: cfg.llm?.model || "gpt-4o",
+        model: cfg.llm?.model || "deepseek-chat",
         temperature: cfg.llm?.temperature ?? 0.8,
-        maxTokens: cfg.llm?.maxTokens ?? 4096,
+        maxTokens: cfg.llm?.maxTokens ?? 16384,
       };
     }
   } catch {}
@@ -181,6 +181,9 @@ const plugin: MainPlugin = {
       }
 
       // Start streaming
+      llmLogs.push({ ts: new Date().toISOString(), mode: params.mode, system: messages[0]?.content || "", user: messages[1]?.content || "", response: "" });
+      const logIdx = llmLogs.length - 1;
+      let fullResponse = "";
       streamLLM({
         baseUrl: config.baseUrl,
         apiKey: config.apiKey,
@@ -189,9 +192,15 @@ const plugin: MainPlugin = {
         maxTokens: config.maxTokens,
         messages,
         signal: controller.signal,
-        onChunk: (chunk) => send("streamChunk", { content: chunk }),
-        onDone: (fullText) => send("streamDone", { fullText }),
-        onError: (message, code) => send("streamError", { message, code }),
+        onChunk: (chunk) => { fullResponse += chunk; send("streamChunk", { content: chunk }); },
+        onDone: (fullText) => {
+          llmLogs[logIdx].response = fullResponse || fullText;
+          send("streamDone", { fullText });
+        },
+        onError: (message, code) => {
+          llmLogs[logIdx].response = `ERROR: ${message}`;
+          send("streamError", { message, code });
+        },
       }).finally(() => {
         activeRequests.delete(requestId);
       });
@@ -232,19 +241,24 @@ const plugin: MainPlugin = {
 
       const send = (channel: string, payload: any) => ctx.sendMessage(channel, payload);
 
+      // Send immediate progress feedback
+      send("streamChunk", { content: "Analyzing your text and generating critique questions...\n\n" });
+
       const controller = new AbortController();
       activeRequests.set("workshop_" + params.fragmentId, controller);
 
       let fullText = "";
       const prompt = PROMPTS.workshopAnalyze.replace("{{chapter}}", content);
-      console.log("[agent] workshopStart: content length =", content.length, "chars");
+      console.log("[agent] workshopStart: content length =", content.length, "chars, sending to", config.model);
+      llmLogs.push({ ts: new Date().toISOString(), mode: "workshop-analyze", system: "writing workshop mentor", user: content, response: "" });
+      const logIdx = llmLogs.length - 1;
 
       streamLLM({
         baseUrl: config.baseUrl,
         apiKey: config.apiKey,
         model: config.model,
-        temperature: 0.3,
-        maxTokens: 2000,
+        temperature: 0.3, // analysis needs focus, not creativity
+        maxTokens: config.maxTokens,
         messages: [
           { role: "system", content: "You are a strict writing workshop mentor. Return ONLY valid JSON." },
           { role: "user", content: prompt },
@@ -252,32 +266,65 @@ const plugin: MainPlugin = {
         signal: controller.signal,
         onChunk: (chunk) => { fullText += chunk; },
         onDone: () => {
+          console.log("[agent] workshopStart: LLM done, fullText.length =", fullText.length);
+          if (llmLogs[logIdx]) llmLogs[logIdx].response = fullText;
           try {
             const jsonMatch = fullText.match(/\[[\s\S]*\]/);
             if (jsonMatch) {
-              const questions = JSON.parse(jsonMatch[0]);
+              try {
+                const questions = JSON.parse(jsonMatch[0]);
+                console.log("[agent] workshopStart: parsed", questions.length, "questions");
+                const state = {
+                  stage: "questions",
+                  chapterFragmentId: params.fragmentId,
+                  questions: questions.map((q: any) => ({
+                    id: q.id,
+                    section: q.section,
+                    question: q.question,
+                    userAnswer: "",
+                  })),
+                  conversationHistory: [],
+                  revisedContent: "",
+                };
+                console.log("[agent] workshopStart: sending workshopStateChanged to renderer");
+                send("workshopStateChanged", state);
+              } catch (parseErr: any) {
+                // JSON was found but incomplete — send as discussion text instead
+                console.log("[agent] workshopStart: incomplete JSON, falling back to discussion text");
+                const state = {
+                  stage: "discussing",
+                  chapterFragmentId: params.fragmentId,
+                  questions: [],
+                  conversationHistory: [
+                    { role: "agent" as const, content: fullText },
+                  ],
+                  revisedContent: "",
+                };
+                send("workshopStateChanged", state);
+              }
+            } else {
+              // No JSON at all — send raw response as discussion
+              console.log("[agent] workshopStart: no JSON, sending as discussion text");
               const state = {
-                stage: "questions",
+                stage: "discussing",
                 chapterFragmentId: params.fragmentId,
-                questions: questions.map((q: any) => ({
-                  id: q.id,
-                  section: q.section,
-                  question: q.question,
-                  userAnswer: "",
-                })),
-                conversationHistory: [],
+                questions: [],
+                conversationHistory: [
+                  { role: "agent" as const, content: fullText },
+                ],
                 revisedContent: "",
               };
               send("workshopStateChanged", state);
-            } else {
-              send("streamError", { message: "Failed to parse workshop questions" });
             }
           } catch (e: any) {
-            send("streamError", { message: "Failed to parse workshop questions: " + e.message });
+            console.error("[agent] workshopStart: error:", e.message);
+            send("streamError", { message: e.message });
           }
           activeRequests.delete("workshop_" + params.fragmentId);
         },
         onError: (message, code) => {
+          console.error("[agent] workshopStart: LLM ERROR:", message, code);
+          if (llmLogs[logIdx]) llmLogs[logIdx].response = `ERROR: ${message}`;
           send("streamError", { message, code });
           activeRequests.delete("workshop_" + params.fragmentId);
         },

@@ -186,7 +186,7 @@ class Store {
   }
 
   clearStream(): void {
-    this.update({ streamText: "", streamComplete: false, workshopState: null });
+    this.update({ streamText: "", streamComplete: false });
   }
 
   setWorkshopState(state: WorkshopState): void {
