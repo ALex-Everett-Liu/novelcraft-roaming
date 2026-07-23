@@ -538,7 +538,38 @@ body {
 }
 
 .settings-body {
-  padding: 20px;
+  padding: 0 20px 20px;
+}
+
+.settings-section {
+  margin-top: 20px;
+  margin-bottom: 24px;
+}
+
+.settings-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0;
+}
+
+.settings-tab {
+  padding: 10px 16px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.settings-tab:hover {
+  color: var(--text);
+}
+
+.settings-tab-active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
 }
 
 .settings-section {
@@ -593,7 +624,6 @@ body {
 }
 
 .settings-btn {
-  margin-top: 16px;
   padding: 8px 20px;
   border: none;
   border-radius: 4px;
@@ -602,6 +632,47 @@ body {
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
+}
+
+.settings-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.settings-btn-test {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.settings-btn-test:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.settings-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.settings-test-result {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.settings-test-ok {
+  background: rgba(74, 222, 128, 0.1);
+  color: #4ade80;
+  border: 1px solid rgba(74, 222, 128, 0.3);
+}
+
+.settings-test-fail {
+  background: rgba(229, 115, 115, 0.1);
+  color: #e57373;
+  border: 1px solid rgba(229, 115, 115, 0.3);
 }
 
 .settings-error {
@@ -644,4 +715,68 @@ body {
 
 .toolbar-btn-settings {
   color: var(--text-muted);
+}
+
+/* ─── Plugin List ───────────────────────── */
+.plugin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.plugin-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.plugin-item:last-child {
+  border-bottom: none;
+}
+
+.plugin-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.plugin-item-name {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.plugin-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--focus-bg);
+  color: var(--accent);
+  font-size: 0.65rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.plugin-item-desc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.plugin-status {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 3px;
+}
+
+.plugin-status-on {
+  color: #4ade80;
+  border: 1px solid rgba(74, 222, 128, 0.3);
+}
+
+.plugin-status-off {
+  color: var(--text-muted);
+  border: 1px solid var(--border);
 }

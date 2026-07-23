@@ -5,7 +5,7 @@ import type { NovelCraftRPCType } from "../shared/rpc-schema";
 import { initApi } from "./rpc/api";
 import { initializeTheme } from "./theme/themeManager";
 import { App } from "./components/App";
-import { loadRendererPlugins } from "./plugin-system/loadRendererPlugins";
+import { loadAllRendererPluginsImmediately } from "./plugin-system/loadRendererPlugins";
 
 initializeTheme();
 
@@ -35,8 +35,7 @@ initApi(electroview.rpc!.request);
 
 render(html`<${App} />`, document.getElementById("app")!);
 
-setTimeout(async () => {
-  await loadRendererPlugins().catch((err) =>
-    console.error("[renderer plugins] Failed to load:", err)
-  );
-}, 300);
+// Load renderer plugins immediately — they're all essential for MVP
+loadAllRendererPluginsImmediately().catch((err) =>
+  console.error("[renderer plugins] Failed to load:", err)
+);
