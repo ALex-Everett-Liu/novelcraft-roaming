@@ -415,6 +415,58 @@ function EditableField({ dim, field, value, onEdit }: {
   `;
 }
 
+// ===== Context Entries View =====
+function ContextEntriesView({ entries, categories }: { entries: any[]; categories: Record<string, string> }) {
+  const grouped: Record<string, any[]> = {};
+  for (const e of entries) {
+    const cat = e.category || "unknown";
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(e);
+  }
+
+  const catOrder = ["characters", "relationships", "locations", "events", "atmosphere", "style", "foreshadowing", "plot_state", "unknown"];
+
+  return html`
+    <div class="context-entries">
+      ${catOrder.map((cat) => {
+        const items = grouped[cat];
+        if (!items || items.length === 0) return null;
+        const label = categories[cat] || cat;
+        return html`
+          <${ContextCategorySection} category=${cat} label=${label} items=${items} />
+        `;
+      })}
+    </div>
+  `;
+}
+
+function ContextCategorySection({ category, label, items }: { category: string; label: string; items: any[] }) {
+  const [open, setOpen] = useState(false);
+  return html`
+    <div class="context-category">
+      <button class="context-cat-header" onClick=${() => setOpen(!open)}>
+        <span class="context-cat-toggle">${open ? "▾" : "▸"}</span>
+        <span class="context-cat-label">${label}</span>
+        <span class="context-cat-count">${items.length} entries</span>
+      </button>
+      ${open && html`
+        <div class="context-cat-body">
+          ${items.sort((a, b) => (a.order ?? 100) - (b.order ?? 100)).map((item) => html`
+            <div class="context-entry">
+              <div class="context-entry-header">
+                <span class="context-entry-key">${(item.key || []).join(" / ")}</span>
+                <span class="context-entry-comment">${item.comment || ""}</span>
+                <span class="context-entry-order">#${item.order ?? 100}</span>
+              </div>
+              <div class="context-entry-content">${item.content || ""}</div>
+            </div>
+          `)}
+        </div>
+      `}
+    </div>
+  `;
+}
+
 function FoldableSection({ label, dim, data, onEdit }: {
   label: string;
   dim: string;
@@ -458,10 +510,17 @@ function FoldableSection({ label, dim, data, onEdit }: {
 }
 
 function ProfileViewer() {
-  const [tab, setTab] = useState<"protagonist" | "ontology">("protagonist");
+  const [tab, setTab] = useState<"protagonist" | "ontology" | "context">("protagonist");
   const protagonistMap = store.state.value.protagonistProfile;
   const worldOntology = store.state.value.worldOntology;
+  const contextEntries: any[] | null = store.state.value.contextEntries;
   const activeCharacter = store.state.value.activeCharacter;
+
+  const CONTEXT_CATEGORY_CN: Record<string, string> = {
+    characters: "人物", relationships: "关系动态", locations: "地点",
+    events: "事件", atmosphere: "氛围感官", style: "风格",
+    foreshadowing: "伏笔回收", plot_state: "剧情状态",
+  };
 
   const characterNames = protagonistMap ? Object.keys(protagonistMap) : [];
   const selectedCharacter = activeCharacter && protagonistMap?.[activeCharacter]
@@ -477,7 +536,9 @@ function ProfileViewer() {
 
   const currentProfile = tab === "protagonist" && selectedCharacter && protagonistMap
     ? protagonistMap[selectedCharacter]
-    : tab === "ontology" ? worldOntology : null;
+    : tab === "ontology" ? worldOntology
+    : tab === "context" ? contextEntries
+    : null;
 
   // Reset edit copy when tab, character, or profile changes
   useEffect(() => {
@@ -523,9 +584,10 @@ function ProfileViewer() {
 
   const handleSnapshot = async () => {
     if (!editProfile || !project) return;
+    const snapshotType = tab === "protagonist" ? "protagonist" : tab === "context" ? "context" : "worldview";
     const res = await api.profileSnapshotSave({
       projectId: project.id,
-      type: tab === "protagonist" ? "protagonist" : "worldview",
+      type: snapshotType,
       profile: editProfile,
     });
     if (res.success) {
@@ -556,6 +618,13 @@ function ProfileViewer() {
           disabled=${!worldOntology}
         >
           Worldview ${worldOntology ? "" : "(none)"}
+        </button>
+        <button
+          class=${`profile-tab ${tab === "context" ? "profile-tab-active" : ""}`}
+          onClick=${() => setTab("context")}
+          disabled=${!contextEntries || !contextEntries.length}
+        >
+          Context ${contextEntries ? `(${contextEntries.length})` : "(none)"}
         </button>
         ${tab === "protagonist" && characterNames.length > 1 && html`
           <select
@@ -596,7 +665,9 @@ function ProfileViewer() {
       `}
 
       <div class="profile-content">
-        ${editProfile && dimensions.length > 0
+        ${tab === "context" && contextEntries && contextEntries.length > 0
+          ? html`<${ContextEntriesView} entries=${contextEntries} categories=${CONTEXT_CATEGORY_CN} />`
+          : editProfile && dimensions.length > 0
           ? dimensions.map((dim) => html`
               <${FoldableSection}
                 label=${`${DIMENSION_LABELS[dim] || dim} (${dim})`}
@@ -621,6 +692,7 @@ function OutputPanel() {
   const extraction = store.state.value.extraction;
   const protagonistProfile = store.state.value.protagonistProfile;
   const worldOntology = store.state.value.worldOntology;
+  const contextEntries = store.state.value.contextEntries;
   const hasProfile = protagonistProfile && Object.keys(protagonistProfile).length > 0;
 
   useEffect(() => {
@@ -675,7 +747,7 @@ function OutputPanel() {
   }
 
   // ─── Profiles available (show foldable viewer) ─────
-  if (hasProfile || worldOntology) {
+  if (hasProfile || worldOntology || (contextEntries && contextEntries.length > 0)) {
     return html`<${ProfileViewer} />`;
   }
 

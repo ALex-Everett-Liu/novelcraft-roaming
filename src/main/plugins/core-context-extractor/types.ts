@@ -52,6 +52,32 @@ export const ONTOLOGY_DIMENSION_LABELS: Record<string, string> = {
   narrativeOntology: "叙事本体论",
 };
 
+export const CONTEXT_CATEGORIES = [
+  "characters",
+  "relationships",
+  "locations",
+  "events",
+  "atmosphere",
+  "style",
+  "foreshadowing",
+  "plot_state",
+] as const;
+
+export const CONTEXT_CATEGORY_LABELS: Record<string, string> = {
+  characters: "人物",
+  relationships: "关系动态",
+  locations: "地点",
+  events: "事件",
+  atmosphere: "氛围感官",
+  style: "风格",
+  foreshadowing: "伏笔回收",
+  plot_state: "剧情状态",
+};
+
+export const CONTEXT_EXTRACT_TEMPERATURE = 0.3;
+export const CONTEXT_EXTRACT_TEMPERATURE_RETRY = 0.0;
+export const CONTEXT_MAX_CONTENT_LENGTH = 500;
+
 export const OVERWRITE_DIMENSIONS = new Set([
   "basicAnchors",
   "growthArc",

@@ -6,6 +6,10 @@ import { PROMPTS } from "./prompts";
 import {
   PROTAGONIST_DIMENSIONS,
   ONTOLOGY_DIMENSIONS,
+  CONTEXT_CATEGORIES,
+  CONTEXT_EXTRACT_TEMPERATURE,
+  CONTEXT_EXTRACT_TEMPERATURE_RETRY,
+  CONTEXT_MAX_CONTENT_LENGTH,
   OVERWRITE_DIMENSIONS,
   PARSE_MAX_TOKENS,
   EXTRACT_TEMPERATURE,
@@ -33,7 +37,7 @@ interface FragmentRow {
   projectId: string;
 }
 
-type ExtractionType = "protagonist" | "worldview" | "bridge";
+type ExtractionType = "protagonist" | "worldview" | "context" | "bridge";
 
 const DIMENSION_KEYS = new Set([
   "basicAnchors", "personalitySystem", "motivationSystem", "emotionDefense",
@@ -301,6 +305,112 @@ function parseJsonResponse(content: string, dimensions: readonly string[]): Reco
   return null;
 }
 
+interface ContextEntry {
+  uid: string;
+  category: string;
+  key: string[];
+  comment: string;
+  content: string;
+  order: number;
+}
+
+function parseContextResponse(content: string): ContextEntry[] | null {
+  const text = stripMarkdownFences(content);
+  try {
+    const data = JSON.parse(text);
+    if (Array.isArray(data)) {
+      return data.filter((e: any) => e && typeof e === "object" && e.uid)
+        .map((e: any): ContextEntry => ({
+          uid: String(e.uid || ""),
+          category: String(e.category || "unknown"),
+          key: Array.isArray(e.key) ? e.key.map(String) : [],
+          comment: String(e.comment || ""),
+          content: String(e.content || "").slice(0, CONTEXT_MAX_CONTENT_LENGTH),
+          order: typeof e.order === "number" ? e.order : 100,
+        }));
+    }
+  } catch {}
+  return null;
+}
+
+interface ContextDiff {
+  summary: string;
+  addedCount: number;
+  changedCount: number;
+  removedCount: number;
+  wasIncremental: boolean;
+  perCategory: Record<string, { added: number; changed: number; removed: number }>;
+}
+
+function computeContextDiff(
+  oldEntries: ContextEntry[] | null,
+  newEntries: ContextEntry[],
+): ContextDiff {
+  if (!oldEntries || oldEntries.length === 0) {
+    return {
+      summary: `${newEntries.length} entries extracted (initial)`,
+      addedCount: newEntries.length,
+      changedCount: 0,
+      removedCount: 0,
+      wasIncremental: false,
+      perCategory: {},
+    };
+  }
+
+  const oldByUid = new Map<string, ContextEntry>();
+  for (const e of oldEntries) oldByUid.set(e.uid, e);
+  const newByUid = new Map<string, ContextEntry>();
+  for (const e of newEntries) newByUid.set(e.uid, e);
+
+  let added = 0, changed = 0, removed = 0;
+  const perCategory: Record<string, { added: number; changed: number; removed: number }> = {};
+
+  for (const e of newEntries) {
+    const cat = perCategory[e.category] || (perCategory[e.category] = { added: 0, changed: 0, removed: 0 });
+    const old = oldByUid.get(e.uid);
+    if (!old) {
+      added++;
+      cat.added++;
+    } else if (JSON.stringify(e) !== JSON.stringify(old)) {
+      changed++;
+      cat.changed++;
+    }
+  }
+
+  for (const e of oldEntries) {
+    if (!newByUid.has(e.uid)) {
+      const cat = perCategory[e.category] || (perCategory[e.category] = { added: 0, changed: 0, removed: 0 });
+      removed++;
+      cat.removed++;
+    }
+  }
+
+  const parts: string[] = [];
+  if (added > 0) parts.push(`${added} added`);
+  if (changed > 0) parts.push(`${changed} changed`);
+  if (removed > 0) parts.push(`${removed} removed`);
+  const summary = parts.length === 0
+    ? "No changes (identical to previous)"
+    : parts.join(", ");
+
+  return { summary, addedCount: added, changedCount: changed, removedCount: removed, wasIncremental: true, perCategory };
+}
+
+function mergeContextEntries(
+  accumulated: ContextEntry[],
+  newBatch: ContextEntry[],
+): ContextEntry[] {
+  const map = new Map<string, ContextEntry>();
+  for (const e of accumulated) map.set(e.uid, e);
+  for (const e of newBatch) {
+    const existing = map.get(e.uid);
+    if (!existing || e.content.length >= existing.content.length) {
+      map.set(e.uid, e);
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => a.order - b.order);
+}
+
 function mergeFields(
   accumulated: Record<string, any>,
   newBatch: Record<string, any>,
@@ -365,6 +475,10 @@ const plugin: MainPlugin = {
 
     ctx.runMigration(4, "fix_self_enabled_state", `
       UPDATE _plugin_state SET enabled = 1 WHERE plugin_id = 'core-context-extractor' AND enabled = 0
+    `);
+
+    ctx.runMigration(5, "add_extracted_context", `
+      ALTER TABLE projects ADD COLUMN extracted_context TEXT
     `);
 
     console.log("[ContextExtractor] Plugin loaded, DB migrations applied. Checking RPC registration...");
@@ -714,6 +828,183 @@ const plugin: MainPlugin = {
       } catch {}
     };
 
+    // ===== Context extraction (per-chapter story state) =====
+
+    const doContextExtraction = async (
+      params: { projectId: string; fragmentIds?: string[] },
+    ) => {
+      const config = getConfig();
+      if (!config || !config.apiKey) {
+        ctx.sendMessage("extractionError", { type: "context", message: "LLM not configured", code: "NO_CONFIG" });
+        return;
+      }
+
+      const send = (channel: string, payload: any) => ctx.sendMessage(channel, payload);
+
+      const fragments = loadFragments(ctx, params.projectId, params.fragmentIds);
+      if (fragments.length === 0) {
+        send("extractionError", { type: "context", message: "No fragments to analyze", code: "NO_DATA" });
+        return;
+      }
+
+      const controller = new AbortController();
+      if (currentAbortController) currentAbortController.abort();
+      currentAbortController = controller;
+
+      const projectRow = db.query("SELECT extracted_context, novel_profile FROM projects WHERE id = ?").get(params.projectId) as any;
+      const existingEntries: ContextEntry[] | null = projectRow?.extracted_context
+        ? JSON.parse(projectRow.extracted_context) : null;
+      const novelProfile = projectRow?.novel_profile ? JSON.parse(projectRow.novel_profile) : {};
+
+      const inputLimit = Math.min(config.maxTokens, 64000);
+      const batches = splitFragmentsByTokenLimit(fragments, inputLimit);
+      const batchCount = batches.length;
+
+      send("extractionProgress", { type: "context", batch: 0, totalBatches: batchCount });
+
+      let accumulated: ContextEntry[] = [];
+      const batchResults: ContextEntry[][] = [];
+
+      for (let batchIdx = 0; batchIdx < batchCount; batchIdx++) {
+        if (controller.signal.aborted) {
+          send("extractionError", { type: "context", message: "Extraction cancelled", code: "CANCELLED" });
+          return;
+        }
+
+        const batch = batches[batchIdx];
+        const chaptersText = buildChaptersText(batch.fragments);
+
+        const existingJson = existingEntries
+          ? JSON.stringify(existingEntries, null, 2)
+          : "（无已有条目）";
+
+        const accumulatedJson = batchIdx === 0
+          ? "（首批提取，无前序参考）"
+          : JSON.stringify(accumulated, null, 2);
+
+        const prompt = PROMPTS.contextExtract
+          .replace("{{title}}", novelProfile.title || "")
+          .replace("{{author}}", novelProfile.author || "")
+          .replace("{{protagonist}}", novelProfile.protagonist || "")
+          .replace("{{synopsis}}", novelProfile.synopsis || "")
+          .replace("{{worldSetting}}", novelProfile.worldSetting || "")
+          .replace("{{writingStyle}}", novelProfile.writingStyle || "")
+          .replace("{{chaptersText}}", chaptersText)
+          .replace("{{existingContext}}", existingJson)
+          .replace("{{accumulatedContext}}", accumulatedJson);
+
+        let batchResult: ContextEntry[] | null = null;
+        for (let attempt = 0; attempt < 2; attempt++) {
+          if (controller.signal.aborted) return;
+
+          try {
+            let fullText = "";
+            await new Promise<void>((resolve, reject) => {
+              streamLLM({
+                baseUrl: config.baseUrl,
+                apiKey: config.apiKey,
+                model: config.model,
+                temperature: attempt === 0 ? CONTEXT_EXTRACT_TEMPERATURE : CONTEXT_EXTRACT_TEMPERATURE_RETRY,
+                maxTokens: PARSE_MAX_TOKENS,
+                messages: [
+                  { role: "system", content: "You are a literary analysis expert. Return ONLY valid JSON array. Always respond in Chinese." },
+                  { role: "user", content: prompt },
+                ],
+                signal: controller.signal,
+                onChunk: (chunk) => {
+                  fullText += chunk;
+                  send("extractionChunk", { type: "context", content: chunk, phase: `batch ${batchIdx + 1}/${batchCount}` });
+                },
+                onDone: () => {
+                  const parsed = parseContextResponse(fullText);
+                  if (parsed) {
+                    batchResult = parsed;
+                    resolve();
+                  } else {
+                    if (attempt === 0) resolve();
+                    else reject(new Error("JSON parse failed after retry"));
+                  }
+                },
+                onError: (msg, code) => reject(new Error(msg)),
+              });
+            });
+
+            if (batchResult) break;
+          } catch (e: any) {
+            if (controller.signal.aborted) return;
+            if (attempt === 1) {
+              send("extractionError", { type: "context", message: `Batch ${batchIdx + 1} failed: ${e.message}`, code: "EXTRACT_FAILED" });
+              return;
+            }
+          }
+        }
+
+        if (!batchResult) return;
+
+        batchResults.push(batchResult);
+        accumulated = mergeContextEntries(accumulated, batchResult);
+
+        send("extractionProgress", { type: "context", batch: batchIdx + 1, totalBatches: batchCount });
+      }
+
+      if (controller.signal.aborted) return;
+
+      // Multi-batch merge via LLM
+      if (batchCount > 1 && batchResults.length > 1) {
+        try {
+          const entriesText = batchResults.map((b, i) =>
+            `## 批次 ${i + 1}/${batchCount}\n\n\`\`\`json\n${JSON.stringify(b, null, 2)}\n\`\`\``
+          ).join("\n\n");
+          const mergePrompt = PROMPTS.contextMerge.replace("{{entriesBlocks}}", entriesText);
+
+          let mergeText = "";
+          await new Promise<void>((resolve, reject) => {
+            streamLLM({
+              baseUrl: config.baseUrl,
+              apiKey: config.apiKey,
+              model: config.model,
+              temperature: CONTEXT_EXTRACT_TEMPERATURE,
+              maxTokens: PARSE_MAX_TOKENS,
+              messages: [
+                { role: "system", content: "You are a literary analysis expert. Return ONLY valid JSON array." },
+                { role: "user", content: mergePrompt },
+              ],
+              signal: controller.signal,
+              onChunk: (chunk) => {
+                mergeText += chunk;
+                send("extractionChunk", { type: "context", content: chunk, phase: "merge" });
+              },
+              onDone: () => {
+                const parsed = parseContextResponse(mergeText);
+                if (parsed && parsed.length > 0) accumulated = parsed;
+                resolve();
+              },
+              onError: () => resolve(),
+            });
+          });
+        } catch {}
+      }
+
+      // Save to DB
+      const ts = String(Date.now());
+      db.run("UPDATE projects SET extracted_context = ?, updated_at = ? WHERE id = ?", [
+        JSON.stringify(accumulated), ts, params.projectId,
+      ]);
+
+      const diff = computeContextDiff(existingEntries, accumulated);
+      const snapshotPath = saveVersionSnapshot(params.projectId, "context", { entries: accumulated, count: accumulated.length });
+
+      send("extractionDone", {
+        type: "context",
+        result: accumulated,
+        statusMessage: batchCount === 1
+          ? `提取完成（1 批次，${accumulated.length} 条）`
+          : `提取完成（${batchCount} 批次已合并，${accumulated.length} 条）`,
+        diff,
+        snapshotPath,
+      });
+    };
+
     // ===== RPC handlers =====
 
     ctx.registerRpcHandler("protagonistExtract", async (params: {
@@ -740,6 +1031,20 @@ const plugin: MainPlugin = {
       return { success: true };
     }, { noPrefix: true });
 
+    ctx.registerRpcHandler("contextExtract", async (params: {
+      projectId: string;
+      fragmentIds?: string[];
+    }) => {
+      doContextExtraction(params);
+      return { success: true };
+    }, { noPrefix: true });
+
+    ctx.registerRpcHandler("contextGet", (params: { projectId: string }) => {
+      const row = db.query("SELECT extracted_context FROM projects WHERE id = ?").get(params.projectId) as any;
+      const data = row?.extracted_context ? JSON.parse(row.extracted_context) : null;
+      return { success: true, data };
+    }, { noPrefix: true });
+
     ctx.registerRpcHandler("extractionCancel", () => {
       if (currentAbortController) {
         currentAbortController.abort();
@@ -748,7 +1053,7 @@ const plugin: MainPlugin = {
       return { success: true };
     }, { noPrefix: true });
 
-    ctx.log("Context extractor ready (14-dim profile + 7-dim ontology + bridge)");
+    ctx.log("Context extractor ready (14-dim profile + 7-dim ontology + 8-dim context + bridge)");
   },
 };
 

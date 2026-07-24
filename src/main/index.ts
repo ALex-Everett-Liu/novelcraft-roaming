@@ -36,7 +36,7 @@ const mutatingOps = [
   "configSave",
   "agentRun",
   "workshopStart", "workshopAnswer", "workshopRevise", "workshopAccept",
-  "protagonistExtract", "worldOntologyExtract", "bridgeExtract",
+  "protagonistExtract", "worldOntologyExtract", "bridgeExtract", "contextExtract",
   "novelProfileSave", "protagonistProfileSave", "worldOntologySave",
 ];
 

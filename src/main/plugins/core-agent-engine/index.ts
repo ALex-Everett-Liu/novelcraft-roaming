@@ -71,9 +71,10 @@ function loadFragments(ctx: MainPluginContext, ids: string[]): Fragment[] {
 function loadProfiles(ctx: MainPluginContext, projectId: string, characterName?: string): {
   protagonistProfile: string;
   worldOntology: string;
+  contextEntries: string;
 } {
   const db = ctx.getDatabase();
-  const row = db.query("SELECT protagonist_profile, world_ontology FROM projects WHERE id = ?").get(projectId) as any;
+  const row = db.query("SELECT protagonist_profile, world_ontology, extracted_context FROM projects WHERE id = ?").get(projectId) as any;
   let protagonistProfile = "";
   let worldOntology = "";
 
@@ -120,7 +121,22 @@ function loadProfiles(ctx: MainPluginContext, projectId: string, characterName?:
     worldOntology = "（尚未提取世界观底层，建议先提取以获得更准确的世界一致性）";
   }
 
-  return { protagonistProfile, worldOntology };
+  let contextEntries = "";
+  if (row?.extracted_context) {
+    try {
+      const entries = JSON.parse(row.extracted_context);
+      if (Array.isArray(entries) && entries.length > 0) {
+        contextEntries = entries.map((e: any) =>
+          `[${e.category}] ${(e.key || []).join(" / ")}: ${e.content || ""}`
+        ).join("\n");
+      }
+    } catch {}
+  }
+  if (!contextEntries) {
+    contextEntries = "（尚未提取上下文条目，建议先提取以获得更准确的剧情状态感知）";
+  }
+
+  return { protagonistProfile, worldOntology, contextEntries };
 }
 
 const plugin: MainPlugin = {
@@ -150,7 +166,8 @@ const plugin: MainPlugin = {
 
       const injectProfiles = (prompt: string) =>
         prompt.replace("{{protagonist_profile}}", profiles.protagonistProfile)
-             .replace("{{world_ontology}}", profiles.worldOntology);
+             .replace("{{world_ontology}}", profiles.worldOntology)
+             .replace("{{context_entries}}", profiles.contextEntries);
 
       const controller = new AbortController();
       const requestId = params.fragmentIds.join(",");
@@ -318,6 +335,7 @@ const plugin: MainPlugin = {
       let prompt = PROMPTS.workshopAnalyze
         .replace("{{protagonist_profile}}", profiles.protagonistProfile)
         .replace("{{world_ontology}}", profiles.worldOntology)
+        .replace("{{context_entries}}", profiles.contextEntries)
         .replace("{{chapter}}", content);
       console.log("[agent] workshopStart: content length =", content.length, "chars, sending to", config.model);
       llmLogs.push({ ts: new Date().toISOString(), mode: "workshop-analyze", system: "You are a strict writing workshop mentor. Return ONLY valid JSON.", user: prompt, response: "" });
@@ -486,6 +504,7 @@ const plugin: MainPlugin = {
       let prompt = PROMPTS.workshopRevise;
       prompt = prompt.replace("{{protagonist_profile}}", profiles.protagonistProfile);
       prompt = prompt.replace("{{world_ontology}}", profiles.worldOntology);
+      prompt = prompt.replace("{{context_entries}}", profiles.contextEntries);
       prompt = prompt.replace("{{chapter}}", fragments[0].content);
       prompt = prompt.replace("{{discussion}}", params.discussion);
 

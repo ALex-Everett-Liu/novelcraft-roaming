@@ -111,12 +111,16 @@ export const api = {
     req<RpcResult<void>>("worldOntologyExtract", params),
   bridgeExtract: (params: { projectId: string }) =>
     req<RpcResult<void>>("bridgeExtract", params),
+  contextExtract: (params: { projectId: string; fragmentIds?: string[] }) =>
+    req<RpcResult<void>>("contextExtract", params),
   extractionCancel: () =>
     req<RpcResult<void>>("extractionCancel", {}),
   protagonistGet: (projectId: string) =>
     req<RpcResult<ProtagonistProfile | null>>("protagonistGet", { projectId }),
   worldOntologyGet: (projectId: string) =>
     req<RpcResult<WorldOntology | null>>("worldOntologyGet", { projectId }),
+  contextGet: (projectId: string) =>
+    req<RpcResult<any[] | null>>("contextGet", { projectId }),
   novelProfileSave: (params: { projectId: string; novelProfile: NovelProfile }) =>
     req<RpcResult<void>>("novelProfileSave", params),
   protagonistProfileSave: (params: { projectId: string; profile: ProtagonistProfile }) =>

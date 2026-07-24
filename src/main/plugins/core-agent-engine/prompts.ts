@@ -16,6 +16,9 @@ export const PROMPTS = {
 ---当前世界观底层元描述---
 {{world_ontology}}
 
+---当前上下文条目（剧情状态感知）---
+{{context_entries}}
+
 ---待润色原文---
 {{fragment}}`,
 
@@ -26,6 +29,9 @@ export const PROMPTS = {
 
 ---当前世界观底层元描述---
 {{world_ontology}}
+
+---当前上下文条目（剧情状态感知）---
+{{context_entries}}
 
 片段 A（上文）：
 {{fragmentA}}
@@ -49,6 +55,9 @@ export const PROMPTS = {
 ---当前世界观底层元描述---
 {{world_ontology}}
 
+---当前上下文条目（剧情状态感知）---
+{{context_entries}}
+
 {{fragmentList}}
 
 要求：
@@ -67,6 +76,9 @@ export const PROMPTS = {
 
 ---当前世界观底层元描述---
 {{world_ontology}}
+
+---当前上下文条目（剧情状态感知）---
+{{context_entries}}
 
 原始碎片：
 {{fragment}}
@@ -88,6 +100,9 @@ export const PROMPTS = {
 
 ---当前世界观底层元描述---
 {{world_ontology}}
+
+---当前上下文条目（剧情状态感知）---
+{{context_entries}}
 
 已有内容：
 {{fragmentList}}
@@ -122,6 +137,9 @@ export const PROMPTS = {
 ---当前世界观底层元描述---
 {{world_ontology}}
 
+---当前上下文条目（剧情状态感知）---
+{{context_entries}}
+
 已有内容：
 {{fragmentList}}
 
@@ -141,6 +159,9 @@ export const PROMPTS = {
 
 ---当前世界观底层元描述---
 {{world_ontology}}
+
+---当前上下文条目（剧情状态感知）---
+{{context_entries}}
 
 故事梗概：
 {{synopsis}}
@@ -170,6 +191,9 @@ export const PROMPTS = {
 
 ---当前世界观底层元描述---
 {{world_ontology}}
+
+---当前上下文条目（剧情状态感知）---
+{{context_entries}}
 
 可疑点的类型包括但不限于：
 - 角色动机不明确或有矛盾（对照心理学档案）
@@ -203,6 +227,9 @@ export const PROMPTS = {
 
 ---当前世界观底层元描述---
 {{world_ontology}}
+
+---当前上下文条目（剧情状态感知）---
+{{context_entries}}
 
 ## 章节原文
 {{chapter}}

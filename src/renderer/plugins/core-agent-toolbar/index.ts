@@ -34,6 +34,7 @@ function AgentToolbar() {
   const extraction = store.state.value.extraction;
   const protagonistProfile = store.state.value.protagonistProfile;
   const worldOntology = store.state.value.worldOntology;
+  const contextEntries = store.state.value.contextEntries;
   const project = store.state.value.project;
   const activeCharacter = store.state.value.activeCharacter;
 
@@ -103,6 +104,7 @@ function AgentToolbar() {
   const extractProtagonistLabel = (hasProfile && (!displayCharName || protagonistProfile?.[displayCharName])
     ? "Update" : "Extract") + charLabel + (extractScoped ? ` (${selectedCount})` : "");
   const extractWorldviewLabel = (worldOntology ? "Update Worldview" : "Extract Worldview") + (extractScoped ? ` (${selectedCount})` : "");
+  const extractContextLabel = (contextEntries && contextEntries.length > 0 ? "Update Context" : "Extract Context") + (extractScoped ? ` (${selectedCount})` : "");
 
   return html`
     <div class="agent-modes">
@@ -150,6 +152,14 @@ function AgentToolbar() {
           >
             ${extractWorldviewLabel}
           </button>
+          <button
+            class="extract-btn extract-btn-context"
+            onClick=${() => handleExtract("context")}
+            disabled=${isExtracting}
+            title=${"Extract 8-dim story context (per-chapter)" + extractScopeLabel}
+          >
+            ${extractContextLabel}
+          </button>
         </div>
         ${isExtracting && html`
           <div class="extraction-progress">
@@ -165,6 +175,9 @@ function AgentToolbar() {
         `}
         ${worldOntology && !isExtracting && html`
           <div class="extraction-status">Worldview ready</div>
+        `}
+        ${contextEntries && contextEntries.length > 0 && !isExtracting && html`
+          <div class="extraction-status">Context ready (${contextEntries.length} entries)</div>
         `}
       </div>
 

@@ -30,6 +30,7 @@ export interface AppState {
   extraction: ExtractionState | null;
   protagonistProfile: Record<string, ProtagonistProfile> | null;
   worldOntology: WorldOntology | null;
+  contextEntries: any[] | null;
   activeCharacter: string | null;
   llmConfig: LLMConfig | null;
   loading: boolean;
@@ -50,6 +51,7 @@ function createDefaultState(): AppState {
     extraction: null,
     protagonistProfile: null,
     worldOntology: null,
+    contextEntries: null,
     activeCharacter: null,
     llmConfig: null,
     loading: true,
@@ -235,6 +237,8 @@ class Store {
       await api.protagonistExtract({ projectId, fragmentIds, characterName });
     } else if (type === "worldview") {
       await api.worldOntologyExtract({ projectId, fragmentIds });
+    } else if (type === "context") {
+      await api.contextExtract({ projectId, fragmentIds });
     } else if (type === "bridge") {
       await api.bridgeExtract({ projectId });
     }
@@ -264,6 +268,9 @@ class Store {
     }
     if (type === "worldview") {
       updates.worldOntology = result;
+    }
+    if (type === "context" && Array.isArray(result)) {
+      updates.contextEntries = result;
     }
     this.update(updates);
     this.markModified();
@@ -320,6 +327,10 @@ class Store {
     const wRes = await api.worldOntologyGet(project.id);
     if (wRes.success && wRes.data) {
       this.update({ worldOntology: wRes.data });
+    }
+    const cRes = await api.contextGet(project.id);
+    if (cRes.success && cRes.data) {
+      this.update({ contextEntries: cRes.data });
     }
   }
 
