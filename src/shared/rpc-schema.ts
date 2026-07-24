@@ -24,6 +24,7 @@ import type {
   ProtagonistExtractParams,
   WorldOntologyExtractParams,
   BridgeExtractParams,
+  ContextExtractParams,
   NovelProfileSaveParams,
   PluginInfo,
 } from "./types";
@@ -84,6 +85,8 @@ export type NovelCraftRPCType = {
       extractionCancel: { params: {}; response: RpcResult<void> };
       protagonistGet: { params: { projectId: string }; response: RpcResult<ProtagonistProfile | null> };
       worldOntologyGet: { params: { projectId: string }; response: RpcResult<WorldOntology | null> };
+      contextExtract: { params: ContextExtractParams; response: RpcResult<void> };
+      contextGet: { params: { projectId: string }; response: RpcResult<any[] | null> };
       novelProfileSave: { params: NovelProfileSaveParams; response: RpcResult<void> };
     };
     messages: {

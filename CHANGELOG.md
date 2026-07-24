@@ -10,6 +10,18 @@ All notable changes to the NovelCraft Roaming project.
 
 ### Changed
 
+## [0.1.4] - 2026-07-24
+
+### Added
+
+- **Per-chapter context extraction**: new "Extract Context" button in the toolbar extracts 8-dim story-state entries (characters, relationships, locations, events, atmosphere, style, foreshadowing, plot_state) as a JSON array of ContextEntry objects. Supports batch splitting, LLM multi-batch merge, incremental update, diff summary, snapshots, and DB persistence via `extracted_context` column. Results displayed in a new "Context" tab in the profile viewer, grouped by category with collapsible sections.
+- **Context entries injected into agent prompts**: all 8 agent modes now receive extracted context entries via `{{context_entries}}` placeholder, giving the LLM detailed story-state awareness for better continuity.
+
+### Changed
+
+- **Project schema**: added `extractedContext` field to `ProjectSchema`, `Project` type, `mapProjectRow()`, and RPC schema
+- **PluginManager**: added `contextExtract` and `contextGet` to `buildRpcHandlers()` whitelist
+
 ## [0.1.3] - 2026-07-23
 
 ### Added

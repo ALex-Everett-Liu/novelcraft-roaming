@@ -179,6 +179,7 @@ const plugin: MainPlugin = {
         novelProfile: jsonOrNull(row.novel_profile),
         protagonistProfile: jsonOrNull(row.protagonist_profile),
         worldOntology: jsonOrNull(row.world_ontology),
+        extractedContext: jsonOrNull(row.extracted_context),
       };
     }
 

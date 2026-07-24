@@ -97,6 +97,7 @@ export const ProjectSchema = z.object({
   novelProfile: NovelProfileSchema.nullable().default(null),
   protagonistProfile: ProtagonistProfileSchema.nullable().default(null),
   worldOntology: WorldOntologySchema.nullable().default(null),
+  extractedContext: z.array(z.any()).nullable().default(null),
 });
 
 export type Project = z.infer<typeof ProjectSchema>;
@@ -258,6 +259,11 @@ export interface WorldOntologyExtractParams {
 
 export interface BridgeExtractParams {
   projectId: string;
+}
+
+export interface ContextExtractParams {
+  projectId: string;
+  fragmentIds?: string[];
 }
 
 export interface NovelProfileSaveParams {
